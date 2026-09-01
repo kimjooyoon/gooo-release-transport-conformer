@@ -4,7 +4,7 @@ name: gooo release transport
   workflow_dispatch:
     inputs:
       expected_sha:
-        description: Exact merged main commit to release
+        description: Exact immutable source commit to release
         required: true
         type: string
       release_version:
@@ -26,11 +26,12 @@ jobs:
     runs-on: ubuntu-24.04
     env:
       EXPECTED_SHA: ${{ inputs.expected_sha }}
+      WORKFLOW_SHA: ${{ github.sha }}
       RELEASE_VERSION: ${{ inputs.release_version }}
       OPERATOR_POLICY_RECEIPT_DIGEST: ${{ inputs.operator_policy_receipt_digest }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Checkout exact merged commit
+      - name: Checkout workflow and source history
         uses: actions/checkout@v5
         with:
           ref: main
@@ -46,7 +47,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD)" = "$WORKFLOW_SHA"
+          git cat-file -e "$EXPECTED_SHA^{commit}"
           test "$(go env GOVERSION)" = "go1.27.0"
           case "$OPERATOR_POLICY_RECEIPT_DIGEST" in
             sha256:*) ;;
@@ -72,12 +74,12 @@ jobs:
         run: |
           set -Eeuo pipefail
           release_list=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")
-          exact_draft_count=$(jq --arg tag "$RELEASE_TAG" --arg expected "$EXPECTED_SHA" '[.[] | select(.tag_name == $tag and .draft == true and .target_commitish == $expected)] | length' <<<"$release_list")
-          if [[ "$exact_draft_count" = 1 ]]; then
+          tag_draft_count=$(jq --arg tag "$RELEASE_TAG" '[.[] | select(.tag_name == $tag and .draft == true)] | length' <<<"$release_list")
+          if [[ "$tag_draft_count" = 1 ]]; then
             test "$(git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" | wc -l | tr -d ' ')" = 1
-          elif [[ "$exact_draft_count" = 0 ]]; then
+          elif [[ "$tag_draft_count" = 0 ]]; then
             if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-              echo "refusing to reuse existing tag without an exact draft" >&2
+              echo "refusing to reuse existing tag without a matching draft" >&2
               exit 1
             fi
             git config user.name 'github-actions[bot]'
@@ -85,7 +87,7 @@ jobs:
             git tag -a "$RELEASE_TAG" "$EXPECTED_SHA" -m "gooo release transport $RELEASE_TAG"
             git push origin "refs/tags/$RELEASE_TAG"
           else
-            echo "refusing ambiguous exact draft set for $RELEASE_TAG" >&2
+            echo "refusing ambiguous draft set for $RELEASE_TAG" >&2
             exit 1
           fi
           tag_ref=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")
@@ -115,12 +117,33 @@ jobs:
         run: |
           set -Eeuo pipefail
           release_list=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")
-          tag_drafts=$(jq --arg tag "$RELEASE_TAG" --arg expected "$EXPECTED_SHA" '[.[] | select(.tag_name == $tag and .draft == true) | {id,tag_name,draft,target_commitish}]' <<<"$release_list")
+          tag_drafts=$(jq --arg tag "$RELEASE_TAG" '[.[] | select(.tag_name == $tag and .draft == true) | {id,tag_name,draft,target_commitish}]' <<<"$release_list")
           test "$(jq 'length' <<<"$tag_drafts")" = 1
-          jq -e --arg expected "$EXPECTED_SHA" '.[0].tag_name != "" and .[0].draft == true and .[0].target_commitish == $expected' <<<"$tag_drafts" >/dev/null
+          jq -e '.[0].tag_name != "" and .[0].draft == true and (.[0].target_commitish // "") != ""' <<<"$tag_drafts" >/dev/null
           DRAFT_ID=$(jq -r '.[0].id' <<<"$tag_drafts")
+          DRAFT_TARGET_COMMITISH=$(jq -r '.[0].target_commitish' <<<"$tag_drafts")
           test "$DRAFT_ID" != null
           echo "DRAFT_ID=$DRAFT_ID" >> "$GITHUB_ENV"
+          echo "DRAFT_TARGET_COMMITISH=$DRAFT_TARGET_COMMITISH" >> "$GITHUB_ENV"
+
+      - name: Resolve symbolic release target through peeled tag
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          case "$DRAFT_TARGET_COMMITISH" in
+            "$EXPECTED_SHA") ;;
+            main|master|refs/heads/*) ;;
+            *) echo "draft target_commitish is neither the expected commit nor a symbolic branch target" >&2; exit 1 ;;
+          esac
+          tag_ref=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")
+          test "$(jq -r '.object.type' <<<"$tag_ref")" = tag
+          TAG_OBJECT_SHA=$(jq -r '.object.sha' <<<"$tag_ref")
+          tag_body=$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA")
+          test "$(jq -r '.object.type' <<<"$tag_body")" = commit
+          PEELED_TAG_TARGET=$(jq -r '.object.sha' <<<"$tag_body")
+          test "$PEELED_TAG_TARGET" = "$EXPECTED_SHA"
+          echo "TAG_OBJECT_SHA=$TAG_OBJECT_SHA" >> "$GITHUB_ENV"
+          echo "PEELED_TAG_TARGET=$PEELED_TAG_TARGET" >> "$GITHUB_ENV"
 
       - name: Use release upload URL from draft detail
         shell: bash
@@ -128,6 +151,7 @@ jobs:
           set -Eeuo pipefail
           draft_detail=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID")
           UPLOAD_URL=$(jq -r '.upload_url // empty' <<<"$draft_detail")
+          UPLOAD_URL="${UPLOAD_URL%%\{*}"
           case "$UPLOAD_URL" in
             https://uploads.github.com/*) ;;
             *) echo "draft upload_url is not an uploads.github.com URL" >&2; exit 1 ;;
@@ -143,11 +167,14 @@ jobs:
         run: |
           set -Eeuo pipefail
           RELEASE_DIR="$RUNNER_TEMP/gooo-release-transport-$RELEASE_TAG"
+          SOURCE_DIR="$RUNNER_TEMP/gooo-release-source-$RELEASE_TAG"
           mkdir -p "$RELEASE_DIR"
+          mkdir -p "$SOURCE_DIR"
           git archive --format=tar.gz --prefix="gooo-release-transport-conformer-$RELEASE_TAG/" "$EXPECTED_SHA" > "$RELEASE_DIR/source-$RELEASE_TAG.tar.gz"
-          go test ./... > "$RELEASE_DIR/go-test.txt"
-          go build -trimpath -o "$RELEASE_DIR/gooo-release-transport-conformer" ./cmd/gooo-release-transport-conformer
-          ./scripts/conformance.sh "$GITHUB_WORKSPACE" "$RELEASE_DIR/gooo-release-transport-conformer" "$RELEASE_DIR/conformance"
+          git archive "$EXPECTED_SHA" | tar -x -C "$SOURCE_DIR"
+          (cd "$SOURCE_DIR" && go test ./...) > "$RELEASE_DIR/go-test.txt"
+          (cd "$SOURCE_DIR" && go build -trimpath -o "$RELEASE_DIR/gooo-release-transport-conformer" ./cmd/gooo-release-transport-conformer
+            ./scripts/conformance.sh "$SOURCE_DIR" "$RELEASE_DIR/gooo-release-transport-conformer" "$RELEASE_DIR/conformance")
           tar -czf "$RELEASE_DIR/evidence-$RELEASE_TAG.tar.gz" -C "$RELEASE_DIR" conformance
           (cd "$RELEASE_DIR" && sha256sum "source-$RELEASE_TAG.tar.gz" "evidence-$RELEASE_TAG.tar.gz" > SHA256SUMS)
           echo "RELEASE_DIR=$RELEASE_DIR" >> "$GITHUB_ENV"

@@ -33,11 +33,13 @@ jq -e '
   .toolchain == "go1.27.0" and
   (.stages | length) == 5 and
   (all(.stages[]; (.wall_ms|type)=="number" and (.peak_rss_kib|type)=="number")) and
-  .tests == {total:16,selected:16,executed:16,reused:0,failed:0,unknown:0} and
+  .tests == {total:18,selected:18,executed:18,reused:0,failed:0,unknown:0} and
   .authority.repository_writes == 0 and .authority.local_go_tests == 0 and
   .authority.cross_project_required_gates == 0 and
   .operational_audit.state == "REFUTED" and
   .operational_audit.local_test_invocations == 2 and
   .operational_audit.local_test_executions == 1 and
+  .operational_audit.authoring_static_validation_invocations == 2 and
+  .operational_audit.authoring_static_validation_executions == 2 and
   .operational_audit.operator_stage_local_test_executions == 0
 ' "$output/ci-evidence.json" >/dev/null

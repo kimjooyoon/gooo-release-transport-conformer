@@ -8,11 +8,11 @@ trap 'rm -rf "$work"' EXIT
 
 inspect=$(go run ./cmd/gooo-release-transport-conformer inspect --source "$root/.gooo/release-transport.gooo")
 jq -e '
-  .contract_id == "gooo-release-transport-conformer/v3" and
-  .denominator == 16 and
-  (.activities | length) == 10 and
-  (.scenarios | length) == 16 and
-  (.activities | unique | length) == 10
+  .contract_id == "gooo-release-transport-conformer/v4" and
+  .denominator == 18 and
+  (.activities | length) == 11 and
+  (.scenarios | length) == 18 and
+  (.activities | unique | length) == 11
 ' <<<"$inspect" >/dev/null
 
 go run ./cmd/gooo-release-transport-conformer generate --root "$root" --output "$work/generated" >/dev/null
