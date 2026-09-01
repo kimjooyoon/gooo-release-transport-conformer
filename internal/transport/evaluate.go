@@ -111,6 +111,16 @@ func EvaluateScenario(spec ScenarioSpec, observation TransportObservation) Scena
 			return refuted("UNAUTHORIZED_ACTION_CAPABILITY", "workflow contains a user-token secret or an administration endpoint")
 		}
 		return closed("workflow is limited to standard github.token and public release verification")
+	case "resume-existing-exact-draft-by-list-id":
+		if observation.ReconciledDraft && observation.DraftID != "" && observation.DraftTag != "" && observation.DraftSourceTarget == observation.Tag.ExpectedCommit && (observation.ExistingDraftAssets == "empty" || observation.ExistingDraftAssets == "exact") {
+			return closed("exact draft was found through the release list API and resumed by immutable release ID")
+		}
+		return refuted("DRAFT_RESUME_BINDING_MISMATCH", "existing draft was not resumed by exact list-derived ID and source target")
+	case "existing-draft-target-or-assets-mismatch":
+		if observation.ExistingDraftMismatch || observation.DraftSourceTarget != observation.Tag.ExpectedCommit || (observation.ExistingDraftAssets != "empty" && observation.ExistingDraftAssets != "exact") {
+			return refuted("EXISTING_DRAFT_MISMATCH", "existing draft target or asset names/digests differ, so the workflow must fail closed")
+		}
+		return closed("existing draft target and assets match")
 	default:
 		return refuted("UNDECLARED_SCENARIO", "scenario is not part of the fixed transport denominator")
 	}
@@ -129,6 +139,11 @@ func fixedObservation(id, workflow string) TransportObservation {
 		GitIdentity:    GitIdentityObservation{Name: "github-actions[bot]", Email: "41898282+github-actions[bot]@users.noreply.github.com"},
 		Assets:         assets,
 		Tag:            TagObservation{Exists: false, Annotated: true, ObjectType: "tag", ObjectSHA: "sha256:annotated-tag-object", TargetCommit: "merge-commit", ExpectedCommit: "merge-commit"},
+		DraftID:        "draft-123",
+		DraftTag:       "v0.1.1",
+		DraftSourceTarget: "merge-commit",
+		ExistingDraftAssets: "empty",
+		ReconciledDraft: true,
 		DraftCreated:   true, AssetsUploaded: true, Published: true, PublishedImmutable: true,
 		DeterministicReplay: true,
 	}
@@ -151,6 +166,12 @@ func fixedObservation(id, workflow string) TransportObservation {
 		observation.ChecksumPathMismatch = true
 	case "user-token-secret-or-admin-endpoint-in-actions":
 		observation.ActionHasUserTokenSecret = true
+	case "resume-existing-exact-draft-by-list-id":
+		observation.ExistingDraftAssets = "exact"
+	case "existing-draft-target-or-assets-mismatch":
+		observation.DraftSourceTarget = "different-commit"
+		observation.ExistingDraftAssets = "mismatch"
+		observation.ExistingDraftMismatch = true
 	}
 	return observation
 }
@@ -158,6 +179,7 @@ func fixedObservation(id, workflow string) TransportObservation {
 func workflowOrderValid(workflow string) bool {
 	markers := []string{
 		"Create draft release before assets",
+		"Reconcile existing draft by list ID",
 		"Upload every release asset",
 		"Publish release after all uploads",
 		"Verify public immutable release",

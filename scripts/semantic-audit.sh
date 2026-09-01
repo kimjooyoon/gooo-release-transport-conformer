@@ -8,11 +8,11 @@ trap 'rm -rf "$work"' EXIT
 
 inspect=$(go run ./cmd/gooo-release-transport-conformer inspect --source "$root/.gooo/release-transport.gooo")
 jq -e '
-  .contract_id == "gooo-release-transport-conformer/v1" and
-  .denominator == 12 and
-  (.activities | length) == 8 and
-  (.scenarios | length) == 12 and
-  (.activities | unique | length) == 8
+  .contract_id == "gooo-release-transport-conformer/v2" and
+  .denominator == 14 and
+  (.activities | length) == 9 and
+  (.scenarios | length) == 14 and
+  (.activities | unique | length) == 9
 ' <<<"$inspect" >/dev/null
 
 gofmt_files=$(git -C "$root" ls-files '*.go' 2>/dev/null || true)

@@ -1,15 +1,16 @@
 {
-  "schema": "gooo/release-transport-conformer/transport-contract/v1",
-  "contract_id": "release-transport-v1",
+  "schema": "gooo/release-transport-conformer/transport-contract/v2",
+  "contract_id": "release-transport-v2",
   "authority": "metacode",
   "precedence": ["REFUTED", "UNKNOWN", "CLOSED"],
   "unknown_fields": ["stage", "step", "reason", "unknown_class", "next_operation", "blocked_by"],
-  "denominator": 12,
+  "denominator": 14,
   "activities": [
     "DeclareReleaseTransportProtocol",
     "BindOperatorPolicyReceipt",
     "BindSourceRunArtifact",
     "GenerateDraftFirstWorkflow",
+    "ReconcileExistingDraft",
     "VerifyAnnotatedTagTarget",
     "VerifyPublicAssetDigests",
     "PreserveTransportCounterexample",
@@ -27,6 +28,8 @@
     {"ordinal": 9, "id": "publish-before-assets", "expected_decision": "REFUTED"},
     {"ordinal": 10, "id": "published-immutable-false", "expected_decision": "REFUTED"},
     {"ordinal": 11, "id": "checksum-path-mismatch", "expected_decision": "REFUTED"},
-    {"ordinal": 12, "id": "user-token-secret-or-admin-endpoint-in-actions", "expected_decision": "REFUTED"}
+    {"ordinal": 12, "id": "user-token-secret-or-admin-endpoint-in-actions", "expected_decision": "REFUTED"},
+    {"ordinal": 13, "id": "resume-existing-exact-draft-by-list-id", "expected_decision": "CLOSED"},
+    {"ordinal": 14, "id": "existing-draft-target-or-assets-mismatch", "expected_decision": "REFUTED"}
   ]
 }

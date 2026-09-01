@@ -3,10 +3,10 @@ package transport
 import "encoding/json"
 
 const (
-	ContractSchema = "gooo/release-transport-conformer/transport-contract/v1"
-	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v1"
-	EventsSchema   = "gooo/release-transport-conformer/transport-events/v1"
-	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v1"
+	ContractSchema = "gooo/release-transport-conformer/transport-contract/v2"
+	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v2"
+	EventsSchema   = "gooo/release-transport-conformer/transport-events/v2"
+	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v2"
 	Toolchain      = "go1.27.0"
 )
 
@@ -25,6 +25,7 @@ var RequiredActivities = []string{
 	"BindOperatorPolicyReceipt",
 	"BindSourceRunArtifact",
 	"GenerateDraftFirstWorkflow",
+	"ReconcileExistingDraft",
 	"VerifyAnnotatedTagTarget",
 	"VerifyPublicAssetDigests",
 	"PreserveTransportCounterexample",
@@ -100,6 +101,12 @@ type TransportObservation struct {
 	GitIdentity              GitIdentityObservation `json:"git_identity"`
 	Assets                   []AssetObservation     `json:"assets"`
 	Tag                      TagObservation         `json:"tag"`
+	DraftID                  string                 `json:"draft_id"`
+	DraftTag                 string                 `json:"draft_tag"`
+	DraftSourceTarget        string                 `json:"draft_source_target"`
+	ExistingDraftAssets      string                 `json:"existing_draft_assets"`
+	ReconciledDraft          bool                   `json:"reconciled_draft"`
+	ExistingDraftMismatch    bool                   `json:"existing_draft_mismatch"`
 	DraftCreated             bool                   `json:"draft_created"`
 	AssetsUploaded           bool                   `json:"assets_uploaded"`
 	Published                bool                   `json:"published"`

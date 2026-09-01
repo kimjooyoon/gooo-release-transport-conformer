@@ -1,12 +1,13 @@
-contract "gooo-release-transport-conformer/v1" {
+contract "gooo-release-transport-conformer/v2" {
   authority "metacode"
   precedence "REFUTED" "UNKNOWN" "CLOSED"
   unknown_fields "stage" "step" "reason" "unknown_class" "next_operation" "blocked_by"
-  denominator id "release-transport-v1" count "12"
+  denominator id "release-transport-v2" count "14"
   activity id "declare-release-transport-protocol" name "DeclareReleaseTransportProtocol" proof "TRANSPORT_PROTOCOL_DECLARED" artifact "transport-manifest.json" authority "READ_ONLY"
   activity id "bind-operator-policy-receipt" name "BindOperatorPolicyReceipt" proof "EXTERNAL_IMMUTABLE_DIGEST_BOUND" artifact "transport-manifest.json" authority "READ_ONLY"
   activity id "bind-source-run-artifact" name "BindSourceRunArtifact" proof "SOURCE_RUN_SHA_BOUND" artifact "transport-manifest.json" authority "READ_ONLY"
   activity id "generate-draft-first-workflow" name "GenerateDraftFirstWorkflow" proof "DRAFT_ASSETS_PUBLISH_ORDER_GENERATED" artifact "release-workflow.yml" authority "READ_ONLY"
+  activity id "reconcile-existing-draft" name "ReconcileExistingDraft" proof "EXACT_DRAFT_RESUMED_BY_LIST_ID" artifact "release-workflow.yml" authority "READ_ONLY"
   activity id "verify-annotated-tag-target" name "VerifyAnnotatedTagTarget" proof "ANNOTATED_TAG_OBJECT_TARGET_MATCHED" artifact "transport-events.ndjson" authority "READ_ONLY"
   activity id "verify-public-asset-digests" name "VerifyPublicAssetDigests" proof "PUBLIC_ASSET_DIGESTS_MATCHED" artifact "transport-events.ndjson" authority "READ_ONLY"
   activity id "preserve-transport-counterexample" name "PreserveTransportCounterexample" proof "REFUTED_AND_UNKNOWN_CASES_PRESERVED" artifact "transport-events.ndjson" authority "READ_ONLY"
@@ -23,4 +24,6 @@ contract "gooo-release-transport-conformer/v1" {
   scenario ordinal "10" id "published-immutable-false" expected "REFUTED"
   scenario ordinal "11" id "checksum-path-mismatch" expected "REFUTED"
   scenario ordinal "12" id "user-token-secret-or-admin-endpoint-in-actions" expected "REFUTED"
+  scenario ordinal "13" id "resume-existing-exact-draft-by-list-id" expected "CLOSED"
+  scenario ordinal "14" id "existing-draft-target-or-assets-mismatch" expected "REFUTED"
 }
