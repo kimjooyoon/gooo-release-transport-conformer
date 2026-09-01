@@ -1,0 +1,32 @@
+{
+  "schema": "gooo/release-transport-conformer/transport-contract/v1",
+  "contract_id": "release-transport-v1",
+  "authority": "metacode",
+  "precedence": ["REFUTED", "UNKNOWN", "CLOSED"],
+  "unknown_fields": ["stage", "step", "reason", "unknown_class", "next_operation", "blocked_by"],
+  "denominator": 12,
+  "activities": [
+    "DeclareReleaseTransportProtocol",
+    "BindOperatorPolicyReceipt",
+    "BindSourceRunArtifact",
+    "GenerateDraftFirstWorkflow",
+    "VerifyAnnotatedTagTarget",
+    "VerifyPublicAssetDigests",
+    "PreserveTransportCounterexample",
+    "EmitTransportReceipt"
+  ],
+  "scenarios": [
+    {"ordinal": 1, "id": "draft-assets-publish-immutable", "expected_decision": "CLOSED"},
+    {"ordinal": 2, "id": "deterministic-replay", "expected_decision": "CLOSED"},
+    {"ordinal": 3, "id": "all-asset-digests-match", "expected_decision": "CLOSED"},
+    {"ordinal": 4, "id": "exact-annotated-tag-target", "expected_decision": "CLOSED"},
+    {"ordinal": 5, "id": "missing-operator-immutable-policy-receipt", "expected_decision": "UNKNOWN", "unknown_class": "DIRECT_MISSING"},
+    {"ordinal": 6, "id": "stale-source-run", "expected_decision": "UNKNOWN", "unknown_class": "STALE"},
+    {"ordinal": 7, "id": "missing-git-identity", "expected_decision": "UNKNOWN", "unknown_class": "DIRECT_MISSING"},
+    {"ordinal": 8, "id": "tag-collision", "expected_decision": "REFUTED"},
+    {"ordinal": 9, "id": "publish-before-assets", "expected_decision": "REFUTED"},
+    {"ordinal": 10, "id": "published-immutable-false", "expected_decision": "REFUTED"},
+    {"ordinal": 11, "id": "checksum-path-mismatch", "expected_decision": "REFUTED"},
+    {"ordinal": 12, "id": "user-token-secret-or-admin-endpoint-in-actions", "expected_decision": "REFUTED"}
+  ]
+}
