@@ -190,9 +190,9 @@ type OperationalAudit struct {
 	AuthoringLocalTestExecutions      int      `json:"authoring_local_test_executions"`
 	OperatorStageLocalTestInvocations int      `json:"operator_stage_local_test_invocations"`
 	OperatorStageLocalTestExecutions  int      `json:"operator_stage_local_test_executions"`
-	LocalTestInvocations               int      `json:"local_test_invocations"`
-	LocalTestExecutions                int      `json:"local_test_executions"`
-	CIAuthority                        string   `json:"ci_authority"`
+	LocalTestInvocations              int      `json:"local_test_invocations"`
+	LocalTestExecutions               int      `json:"local_test_executions"`
+	CIAuthority                       string   `json:"ci_authority"`
 }
 
 type Manifest struct {

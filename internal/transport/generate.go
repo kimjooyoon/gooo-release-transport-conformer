@@ -117,7 +117,7 @@ func Generate(options GenerateOptions) (Receipt, error) {
 		ArtifactDigests:       artifactDigests,
 		Inventory:             inventory,
 		Tests:                 TestCounts{Total: 12, Selected: 12, Executed: 12, Reused: 0, Failed: 0, Unknown: 0},
-		Measurements: StageMeasurements{},
+		Measurements:          StageMeasurements{},
 		OperationalAudit: OperationalAudit{
 			State:                             Refuted,
 			Reason:                            "local Go test execution occurred during authoring; semantic conformance remains separately classified",
@@ -129,7 +129,7 @@ func Generate(options GenerateOptions) (Receipt, error) {
 			LocalTestExecutions:               1,
 			CIAuthority:                       "GITHUB_ACTIONS_ONLY_FROM_PR_ONWARD",
 		},
-		ScopeNote:             "CLOSED means the twelve declared release-transport contracts were classified as expected; it is not a global safety claim.",
+		ScopeNote: "CLOSED means the twelve declared release-transport contracts were classified as expected; it is not a global safety claim.",
 	}
 	report := RenderHumanReport(receipt)
 	reportRaw := []byte(report)

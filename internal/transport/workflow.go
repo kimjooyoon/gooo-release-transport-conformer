@@ -137,7 +137,7 @@ jobs:
           jq -e --arg tag "$RELEASE_TAG" '.tag_name == $tag and .draft == false and .prerelease == false and .immutable == true and (.assets | length) == 3' <<<"$release_json" >/dev/null
           test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.type')" = tag
           test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')" = "$TAG_OBJECT_SHA"
-          jq -e --arg expected "$EXPECTED_SHA" " .object.type == \"commit\" and .object.sha == \$expected " <(gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA") >/dev/null
+          jq -e --arg expected "$EXPECTED_SHA" '.object.type == "commit" and .object.sha == $expected' <(gh api "repos/$GITHUB_REPOSITORY/git/tags/$TAG_OBJECT_SHA") >/dev/null
           while read -r digest path; do
             expected="sha256:$digest"
             actual=$(jq -r --arg path "$(basename "$path")" '.assets[] | select(.name == $path) | .digest' <<<"$release_json")
