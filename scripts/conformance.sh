@@ -49,12 +49,12 @@ jq -e '
 ' "$output/conformance-receipt.json" >/dev/null
 
 workflow=$output/release-workflow.yml
-! rg -n 'secrets\.|GITHUB_TOKEN|GH_PAT|\bPAT\b|/immutable-releases|administration|admin:repo' "$workflow"
-rg -n 'GH_TOKEN: \$\{\{ github\.token \}\}' "$workflow" >/dev/null
-draft_line=$(rg -n 'Create draft release before assets' "$workflow" | cut -d: -f1)
-upload_line=$(rg -n 'Upload every release asset' "$workflow" | cut -d: -f1)
-publish_line=$(rg -n 'Publish release after all uploads' "$workflow" | cut -d: -f1)
-verify_line=$(rg -n 'Verify public immutable release' "$workflow" | cut -d: -f1)
+! grep -En 'secrets\.|GITHUB_TOKEN|GH_PAT|\bPAT\b|/immutable-releases|administration|admin:repo' "$workflow"
+grep -En 'GH_TOKEN: \$\{\{ github\.token \}\}' "$workflow" >/dev/null
+draft_line=$(grep -n 'Create draft release before assets' "$workflow" | cut -d: -f1)
+upload_line=$(grep -n 'Upload every release asset' "$workflow" | cut -d: -f1)
+publish_line=$(grep -n 'Publish release after all uploads' "$workflow" | cut -d: -f1)
+verify_line=$(grep -n 'Verify public immutable release' "$workflow" | cut -d: -f1)
 test "$draft_line" -lt "$upload_line"
 test "$upload_line" -lt "$publish_line"
 test "$publish_line" -lt "$verify_line"
