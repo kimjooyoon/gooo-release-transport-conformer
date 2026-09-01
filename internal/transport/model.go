@@ -204,6 +204,8 @@ type OperationalAudit struct {
 	Reason                            string   `json:"reason"`
 	AuthoringLocalTestInvocations     int      `json:"authoring_local_test_invocations"`
 	AuthoringLocalTestExecutions      int      `json:"authoring_local_test_executions"`
+	AuthoringStaticValidationInvocations int   `json:"authoring_static_validation_invocations"`
+	AuthoringStaticValidationExecutions  int   `json:"authoring_static_validation_executions"`
 	OperatorStageLocalTestInvocations int      `json:"operator_stage_local_test_invocations"`
 	OperatorStageLocalTestExecutions  int      `json:"operator_stage_local_test_executions"`
 	LocalTestInvocations              int      `json:"local_test_invocations"`

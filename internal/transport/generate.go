@@ -123,6 +123,8 @@ func Generate(options GenerateOptions) (Receipt, error) {
 			Reason:                            "local Go test execution occurred during authoring; semantic conformance remains separately classified",
 			AuthoringLocalTestInvocations:     2,
 			AuthoringLocalTestExecutions:      1,
+			AuthoringStaticValidationInvocations: 2,
+			AuthoringStaticValidationExecutions:  2,
 			OperatorStageLocalTestInvocations: 0,
 			OperatorStageLocalTestExecutions:  0,
 			LocalTestInvocations:              2,

@@ -43,6 +43,8 @@ jq -e '
   .operational_audit.state == "REFUTED" and
   .operational_audit.authoring_local_test_invocations == 2 and
   .operational_audit.authoring_local_test_executions == 1 and
+  .operational_audit.authoring_static_validation_invocations == 2 and
+  .operational_audit.authoring_static_validation_executions == 2 and
   .operational_audit.operator_stage_local_test_invocations == 0 and
   .operational_audit.operator_stage_local_test_executions == 0 and
   .operational_audit.local_test_invocations == 2 and
