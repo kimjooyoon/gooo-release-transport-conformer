@@ -131,6 +131,16 @@ func EvaluateScenario(spec ScenarioSpec, observation TransportObservation) Scena
 			return refuted("API_ASSET_UPLOAD_ENDPOINT", "binary asset upload used the api.github.com release-assets endpoint")
 		}
 		return closed("binary asset upload did not use the API release-assets endpoint")
+	case "reconcile-symbolic-target-with-peeled-tag-target":
+		if observation.ReconciledDraft && observation.DraftID != "" && isSymbolicReleaseTarget(observation.DraftTargetCommitish) && observation.PeeledTagTarget == observation.Tag.ExpectedCommit && observation.DraftSourceTarget == observation.PeeledTagTarget && !observation.SymbolicTargetTreatedAsExact {
+			return closed("symbolic draft target_commitish was resolved through the annotated tag's peeled commit")
+		}
+		return refuted("SYMBOLIC_TARGET_NOT_RESOLVED", "symbolic target_commitish was not reconciled with the annotated tag peeled target")
+	case "treat-symbolic-target-commitish-as-exact-commit":
+		if observation.SymbolicTargetTreatedAsExact || (isSymbolicReleaseTarget(observation.DraftTargetCommitish) && observation.DraftSourceTarget == observation.DraftTargetCommitish) || observation.PeeledTagTarget != observation.Tag.ExpectedCommit {
+			return refuted("SYMBOLIC_TARGET_AS_EXACT_COMMIT", "symbolic target_commitish was treated as an exact commit instead of resolving the peeled tag target")
+		}
+		return closed("symbolic target_commitish was not treated as an exact commit")
 	default:
 		return refuted("UNDECLARED_SCENARIO", "scenario is not part of the fixed transport denominator")
 	}
@@ -152,6 +162,9 @@ func fixedObservation(id, workflow string) TransportObservation {
 		DraftID:                  "draft-123",
 		DraftTag:                 "v0.1.1",
 		DraftSourceTarget:        "merge-commit",
+		DraftTargetCommitish:     "main",
+		PeeledTagTarget:          "merge-commit",
+		SymbolicTargetTreatedAsExact: false,
 		ExistingDraftAssets:      "empty",
 		ReconciledDraft:          true,
 		DraftUploadURL:           "https://uploads.github.com/repos/example/releases/123/assets",
@@ -188,6 +201,13 @@ func fixedObservation(id, workflow string) TransportObservation {
 	case "upload-assets-via-api-endpoint":
 		observation.BinaryUploadViaAPI = true
 		observation.UploadEndpoint = "API_RELEASE_ASSETS"
+	case "reconcile-symbolic-target-with-peeled-tag-target":
+		observation.DraftTargetCommitish = "main"
+		observation.PeeledTagTarget = "merge-commit"
+	case "treat-symbolic-target-commitish-as-exact-commit":
+		observation.DraftSourceTarget = "main"
+		observation.PeeledTagTarget = "different-commit"
+		observation.SymbolicTargetTreatedAsExact = true
 	}
 	return observation
 }
@@ -196,6 +216,7 @@ func workflowOrderValid(workflow string) bool {
 	markers := []string{
 		"Create draft release before assets",
 		"Reconcile existing draft by list ID",
+		"Resolve symbolic release target through peeled tag",
 		"Use release upload URL from draft detail",
 		"Upload every release asset",
 		"Publish release after all uploads",
@@ -210,6 +231,10 @@ func workflowOrderValid(workflow string) bool {
 		last = index
 	}
 	return true
+}
+
+func isSymbolicReleaseTarget(value string) bool {
+	return value == "main" || value == "master" || strings.HasPrefix(value, "refs/heads/")
 }
 
 func allAssetDigestsMatch(assets []AssetObservation) bool {

@@ -3,10 +3,10 @@ package transport
 import "encoding/json"
 
 const (
-	ContractSchema = "gooo/release-transport-conformer/transport-contract/v3"
-	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v3"
-	EventsSchema   = "gooo/release-transport-conformer/transport-events/v3"
-	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v3"
+	ContractSchema = "gooo/release-transport-conformer/transport-contract/v4"
+	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v4"
+	EventsSchema   = "gooo/release-transport-conformer/transport-events/v4"
+	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v4"
 	Toolchain      = "go1.27.0"
 )
 
@@ -26,6 +26,7 @@ var RequiredActivities = []string{
 	"BindSourceRunArtifact",
 	"GenerateDraftFirstWorkflow",
 	"ReconcileExistingDraft",
+	"ResolveSymbolicReleaseTarget",
 	"UseReleaseUploadURL",
 	"VerifyAnnotatedTagTarget",
 	"VerifyPublicAssetDigests",
@@ -105,6 +106,9 @@ type TransportObservation struct {
 	DraftID                  string                 `json:"draft_id"`
 	DraftTag                 string                 `json:"draft_tag"`
 	DraftSourceTarget        string                 `json:"draft_source_target"`
+	DraftTargetCommitish     string                 `json:"draft_target_commitish"`
+	PeeledTagTarget          string                 `json:"peeled_tag_target"`
+	SymbolicTargetTreatedAsExact bool              `json:"symbolic_target_treated_as_exact"`
 	ExistingDraftAssets      string                 `json:"existing_draft_assets"`
 	ReconciledDraft          bool                   `json:"reconciled_draft"`
 	ExistingDraftMismatch    bool                   `json:"existing_draft_mismatch"`

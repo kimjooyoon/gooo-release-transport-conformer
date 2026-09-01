@@ -1,16 +1,17 @@
 {
-  "schema": "gooo/release-transport-conformer/transport-contract/v3",
-  "contract_id": "release-transport-v3",
+  "schema": "gooo/release-transport-conformer/transport-contract/v4",
+  "contract_id": "release-transport-v4",
   "authority": "metacode",
   "precedence": ["REFUTED", "UNKNOWN", "CLOSED"],
   "unknown_fields": ["stage", "step", "reason", "unknown_class", "next_operation", "blocked_by"],
-  "denominator": 16,
+  "denominator": 18,
   "activities": [
     "DeclareReleaseTransportProtocol",
     "BindOperatorPolicyReceipt",
     "BindSourceRunArtifact",
     "GenerateDraftFirstWorkflow",
     "ReconcileExistingDraft",
+    "ResolveSymbolicReleaseTarget",
     "UseReleaseUploadURL",
     "VerifyAnnotatedTagTarget",
     "VerifyPublicAssetDigests",
@@ -33,6 +34,8 @@
     {"ordinal": 13, "id": "resume-existing-exact-draft-by-list-id", "expected_decision": "CLOSED"},
     {"ordinal": 14, "id": "existing-draft-target-or-assets-mismatch", "expected_decision": "REFUTED"},
     {"ordinal": 15, "id": "upload-assets-via-release-upload-url", "expected_decision": "CLOSED"},
-    {"ordinal": 16, "id": "upload-assets-via-api-endpoint", "expected_decision": "REFUTED"}
+    {"ordinal": 16, "id": "upload-assets-via-api-endpoint", "expected_decision": "REFUTED"},
+    {"ordinal": 17, "id": "reconcile-symbolic-target-with-peeled-tag-target", "expected_decision": "CLOSED"},
+    {"ordinal": 18, "id": "treat-symbolic-target-commitish-as-exact-commit", "expected_decision": "REFUTED"}
   ]
 }

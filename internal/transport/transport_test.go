@@ -21,7 +21,7 @@ func TestFixedContractHasExactActivitiesAndScenarios(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(contract.Activities) != 10 || len(contract.Scenarios) != 16 || contract.Denominator != 16 {
+	if len(contract.Activities) != 11 || len(contract.Scenarios) != 18 || contract.Denominator != 18 {
 		t.Fatalf("unexpected fixed contract shape: activities=%d scenarios=%d denominator=%d", len(contract.Activities), len(contract.Scenarios), contract.Denominator)
 	}
 	for i, activity := range contract.Activities {
@@ -41,7 +41,7 @@ func TestFixedScenariosEvaluateToDeclaredStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if counts["CLOSED"] != 6 || counts["UNKNOWN"] != 3 || counts["REFUTED"] != 7 {
+	if counts["CLOSED"] != 7 || counts["UNKNOWN"] != 3 || counts["REFUTED"] != 8 {
 		t.Fatalf("unexpected decision counts: %#v", counts)
 	}
 	for _, result := range results {
