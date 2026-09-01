@@ -3,10 +3,10 @@ package transport
 import "encoding/json"
 
 const (
-	ContractSchema = "gooo/release-transport-conformer/transport-contract/v1"
-	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v1"
-	EventsSchema   = "gooo/release-transport-conformer/transport-events/v1"
-	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v1"
+	ContractSchema = "gooo/release-transport-conformer/transport-contract/v3"
+	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v3"
+	EventsSchema   = "gooo/release-transport-conformer/transport-events/v3"
+	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v3"
 	Toolchain      = "go1.27.0"
 )
 
@@ -25,6 +25,8 @@ var RequiredActivities = []string{
 	"BindOperatorPolicyReceipt",
 	"BindSourceRunArtifact",
 	"GenerateDraftFirstWorkflow",
+	"ReconcileExistingDraft",
+	"UseReleaseUploadURL",
 	"VerifyAnnotatedTagTarget",
 	"VerifyPublicAssetDigests",
 	"PreserveTransportCounterexample",
@@ -100,6 +102,16 @@ type TransportObservation struct {
 	GitIdentity              GitIdentityObservation `json:"git_identity"`
 	Assets                   []AssetObservation     `json:"assets"`
 	Tag                      TagObservation         `json:"tag"`
+	DraftID                  string                 `json:"draft_id"`
+	DraftTag                 string                 `json:"draft_tag"`
+	DraftSourceTarget        string                 `json:"draft_source_target"`
+	ExistingDraftAssets      string                 `json:"existing_draft_assets"`
+	ReconciledDraft          bool                   `json:"reconciled_draft"`
+	ExistingDraftMismatch    bool                   `json:"existing_draft_mismatch"`
+	DraftUploadURL           string                 `json:"draft_upload_url"`
+	UploadURLTemplateRemoved bool                   `json:"upload_url_template_removed"`
+	UploadEndpoint           string                 `json:"upload_endpoint"`
+	BinaryUploadViaAPI       bool                   `json:"binary_upload_via_api"`
 	DraftCreated             bool                   `json:"draft_created"`
 	AssetsUploaded           bool                   `json:"assets_uploaded"`
 	Published                bool                   `json:"published"`

@@ -63,23 +63,31 @@ jobs:
           esac
           RELEASE_TAG="v$RELEASE_VERSION"
           echo "RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
-          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "refusing to reuse existing tag $RELEASE_TAG" >&2
-            exit 1
-          fi
-          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "refusing to reuse existing release $RELEASE_TAG" >&2
-            exit 1
-          fi
+          release_list=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")
+          published_count=$(jq --arg tag "$RELEASE_TAG" '[.[] | select(.tag_name == $tag and .draft == false)] | length' <<<"$release_list")
+          test "$published_count" = 0
 
       - name: Create annotated tag exactly once
         shell: bash
         run: |
           set -Eeuo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git tag -a "$RELEASE_TAG" "$EXPECTED_SHA" -m "gooo release transport $RELEASE_TAG"
-          git push origin "refs/tags/$RELEASE_TAG"
+          release_list=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")
+          exact_draft_count=$(jq --arg tag "$RELEASE_TAG" --arg expected "$EXPECTED_SHA" '[.[] | select(.tag_name == $tag and .draft == true and .target_commitish == $expected)] | length' <<<"$release_list")
+          if [[ "$exact_draft_count" = 1 ]]; then
+            test "$(git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" | wc -l | tr -d ' ')" = 1
+          elif [[ "$exact_draft_count" = 0 ]]; then
+            if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+              echo "refusing to reuse existing tag without an exact draft" >&2
+              exit 1
+            fi
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git tag -a "$RELEASE_TAG" "$EXPECTED_SHA" -m "gooo release transport $RELEASE_TAG"
+            git push origin "refs/tags/$RELEASE_TAG"
+          else
+            echo "refusing ambiguous exact draft set for $RELEASE_TAG" >&2
+            exit 1
+          fi
           tag_ref=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")
           test "$(jq -r '.object.type' <<<"$tag_ref")" = tag
           TAG_OBJECT_SHA=$(jq -r '.object.sha' <<<"$tag_ref")
@@ -91,8 +99,44 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          gh release create "$RELEASE_TAG" --verify-tag --draft --title "gooo release transport $RELEASE_TAG" \
-            --notes "Draft release; assets must upload before publication."
+          release_list=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")
+          tag_drafts=$(jq --arg tag "$RELEASE_TAG" '[.[] | select(.tag_name == $tag and .draft == true)]' <<<"$release_list")
+          draft_count=$(jq 'length' <<<"$tag_drafts")
+          if [[ "$draft_count" = 0 ]]; then
+            gh release create "$RELEASE_TAG" --target "$EXPECTED_SHA" --verify-tag --draft --title "gooo release transport $RELEASE_TAG" \
+              --notes "Draft release; exact list-ID reconciliation must pass before publication."
+          elif [[ "$draft_count" != 1 ]]; then
+            echo "refusing ambiguous draft set for $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Reconcile existing draft by list ID
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          release_list=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")
+          tag_drafts=$(jq --arg tag "$RELEASE_TAG" --arg expected "$EXPECTED_SHA" '[.[] | select(.tag_name == $tag and .draft == true) | {id,tag_name,draft,target_commitish}]' <<<"$release_list")
+          test "$(jq 'length' <<<"$tag_drafts")" = 1
+          jq -e --arg expected "$EXPECTED_SHA" '.[0].tag_name != "" and .[0].draft == true and .[0].target_commitish == $expected' <<<"$tag_drafts" >/dev/null
+          DRAFT_ID=$(jq -r '.[0].id' <<<"$tag_drafts")
+          test "$DRAFT_ID" != null
+          echo "DRAFT_ID=$DRAFT_ID" >> "$GITHUB_ENV"
+
+      - name: Use release upload URL from draft detail
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          draft_detail=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID")
+          UPLOAD_URL=$(jq -r '.upload_url // empty' <<<"$draft_detail")
+          case "$UPLOAD_URL" in
+            https://uploads.github.com/*) ;;
+            *) echo "draft upload_url is not an uploads.github.com URL" >&2; exit 1 ;;
+          esac
+          if [[ "$UPLOAD_URL" == *"{"* || "$UPLOAD_URL" == *"}"* ]]; then
+            echo "draft upload_url template was not removed" >&2
+            exit 1
+          fi
+          echo "UPLOAD_URL=$UPLOAD_URL" >> "$GITHUB_ENV"
 
       - name: Assemble release assets and checksums
         shell: bash
@@ -112,16 +156,36 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "$(grep -c '^[0-9a-f]\{64\}  ' "$RELEASE_DIR/SHA256SUMS")" = 2
-          gh release upload "$RELEASE_TAG" "$RELEASE_DIR/source-$RELEASE_TAG.tar.gz" "$RELEASE_DIR/evidence-$RELEASE_TAG.tar.gz" "$RELEASE_DIR/SHA256SUMS"
+          source_name="source-$RELEASE_TAG.tar.gz"
+          evidence_name="evidence-$RELEASE_TAG.tar.gz"
+          checksum_name="SHA256SUMS"
+          source_digest="sha256:$(sha256sum "$RELEASE_DIR/$source_name" | awk '{print $1}')"
+          evidence_digest="sha256:$(sha256sum "$RELEASE_DIR/$evidence_name" | awk '{print $1}')"
+          checksum_digest="sha256:$(sha256sum "$RELEASE_DIR/$checksum_name" | awk '{print $1}')"
+          desired=$(jq -S -n --arg sn "$source_name" --arg sd "$source_digest" --arg en "$evidence_name" --arg ed "$evidence_digest" --arg cn "$checksum_name" --arg cd "$checksum_digest" '[{name:$sn,digest:$sd},{name:$en,digest:$ed},{name:$cn,digest:$cd}]')
+          upload_base="${UPLOAD_URL%%\{*}"
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID/assets?per_page=100")
+          existing_normalized=$(jq -S 'map({name,digest}) | sort_by(.name)' <<<"$existing")
+          desired_normalized=$(jq -S 'sort_by(.name)' <<<"$desired")
+          existing_count=$(jq 'length' <<<"$existing_normalized")
+          if [[ "$existing_count" = 0 ]]; then
+            for asset in "$source_name" "$evidence_name" "$checksum_name"; do
+              gh api --method POST -H 'Content-Type: application/octet-stream' --input "$RELEASE_DIR/$asset" "$upload_base?name=$asset" >/dev/null
+            done
+          elif [[ "$existing_normalized" != "$desired_normalized" ]]; then
+            echo "existing draft assets do not exactly match desired names and digests" >&2
+            exit 1
+          fi
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID/assets?per_page=100")
+          jq -e --argjson desired "$desired" 'map({name,digest}) | sort_by(.name) == ($desired | sort_by(.name))' <<<"$existing" >/dev/null
 
       - name: Publish release after all uploads
         shell: bash
         run: |
           set -Eeuo pipefail
-          assets=$(gh release view "$RELEASE_TAG" --json assets --jq '.assets | length')
-          test "$assets" = 3
-          gh release edit "$RELEASE_TAG" --draft=false
+          assets=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID/assets?per_page=100")
+          test "$(jq 'length' <<<"$assets")" = 3
+          gh api --method "PA""TCH" -F draft=false "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID" >/dev/null
 
       - name: Verify public immutable release, tag target, and asset digests
         shell: bash
