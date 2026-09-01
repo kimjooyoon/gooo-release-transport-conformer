@@ -141,6 +141,16 @@ func EvaluateScenario(spec ScenarioSpec, observation TransportObservation) Scena
 			return refuted("SYMBOLIC_TARGET_AS_EXACT_COMMIT", "symbolic target_commitish was treated as an exact commit instead of resolving the peeled tag target")
 		}
 		return closed("symbolic target_commitish was not treated as an exact commit")
+	case "continue-with-create-response-draft-id":
+		if observation.CreatedDraftID != "" && observation.UsedCreatedDraftID && observation.DraftID == observation.CreatedDraftID {
+			return closed("new draft creation response supplied the release ID used for continued reconciliation")
+		}
+		return refuted("CREATE_RESPONSE_DRAFT_ID_NOT_USED", "new draft creation did not continue with the authoritative response release ID")
+	case "require-immediate-draft-list-visibility-after-create":
+		if observation.ImmediateDraftListRequired || !observation.UsedCreatedDraftID {
+			return refuted("IMMEDIATE_DRAFT_LIST_REQUIRED", "workflow required immediate list visibility after draft creation instead of using the create response ID")
+		}
+		return closed("workflow does not require immediate list visibility after draft creation")
 	default:
 		return refuted("UNDECLARED_SCENARIO", "scenario is not part of the fixed transport denominator")
 	}
@@ -160,6 +170,9 @@ func fixedObservation(id, workflow string) TransportObservation {
 		Assets:         assets,
 		Tag:            TagObservation{Exists: false, Annotated: true, ObjectType: "tag", ObjectSHA: "sha256:annotated-tag-object", TargetCommit: "merge-commit", ExpectedCommit: "merge-commit"},
 		DraftID:                  "draft-123",
+		CreatedDraftID:           "draft-123",
+		UsedCreatedDraftID:       true,
+		ImmediateDraftListRequired: false,
 		DraftTag:                 "v0.1.1",
 		DraftSourceTarget:        "merge-commit",
 		DraftTargetCommitish:     "main",
@@ -208,6 +221,13 @@ func fixedObservation(id, workflow string) TransportObservation {
 		observation.DraftSourceTarget = "main"
 		observation.PeeledTagTarget = "different-commit"
 		observation.SymbolicTargetTreatedAsExact = true
+	case "continue-with-create-response-draft-id":
+		observation.CreatedDraftID = "draft-123"
+		observation.DraftID = "draft-123"
+		observation.UsedCreatedDraftID = true
+	case "require-immediate-draft-list-visibility-after-create":
+		observation.ImmediateDraftListRequired = true
+		observation.UsedCreatedDraftID = false
 	}
 	return observation
 }
@@ -215,6 +235,7 @@ func fixedObservation(id, workflow string) TransportObservation {
 func workflowOrderValid(workflow string) bool {
 	markers := []string{
 		"Create draft release before assets",
+		"Use created draft ID from response",
 		"Reconcile existing draft by list ID",
 		"Resolve symbolic release target through peeled tag",
 		"Use release upload URL from draft detail",

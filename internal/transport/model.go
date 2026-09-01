@@ -3,10 +3,10 @@ package transport
 import "encoding/json"
 
 const (
-	ContractSchema = "gooo/release-transport-conformer/transport-contract/v4"
-	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v4"
-	EventsSchema   = "gooo/release-transport-conformer/transport-events/v4"
-	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v4"
+	ContractSchema = "gooo/release-transport-conformer/transport-contract/v5"
+	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v5"
+	EventsSchema   = "gooo/release-transport-conformer/transport-events/v5"
+	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v5"
 	Toolchain      = "go1.27.0"
 )
 
@@ -25,6 +25,7 @@ var RequiredActivities = []string{
 	"BindOperatorPolicyReceipt",
 	"BindSourceRunArtifact",
 	"GenerateDraftFirstWorkflow",
+	"UseCreatedDraftID",
 	"ReconcileExistingDraft",
 	"ResolveSymbolicReleaseTarget",
 	"UseReleaseUploadURL",
@@ -104,6 +105,9 @@ type TransportObservation struct {
 	Assets                   []AssetObservation     `json:"assets"`
 	Tag                      TagObservation         `json:"tag"`
 	DraftID                  string                 `json:"draft_id"`
+	CreatedDraftID           string                 `json:"created_draft_id"`
+	UsedCreatedDraftID       bool                   `json:"used_created_draft_id"`
+	ImmediateDraftListRequired bool                 `json:"immediate_draft_list_required"`
 	DraftTag                 string                 `json:"draft_tag"`
 	DraftSourceTarget        string                 `json:"draft_source_target"`
 	DraftTargetCommitish     string                 `json:"draft_target_commitish"`

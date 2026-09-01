@@ -76,7 +76,7 @@ func Generate(options GenerateOptions) (Receipt, error) {
 	authority := Authority{CallerOwnedOutput: true, SourceRepositoryReadOnly: true}
 	manifest := Manifest{
 		Schema:                      ManifestSchema,
-		Protocol:                    "gooo-release-transport-conformer/v4",
+		Protocol:                    "gooo-release-transport-conformer/v5",
 		ContractID:                  contract.ContractID,
 		ContractDigest:              DigestBytes(sourceRaw),
 		SourcePath:                  filepath.ToSlash(sourcePath),
@@ -100,7 +100,7 @@ func Generate(options GenerateOptions) (Receipt, error) {
 	}
 	receipt := Receipt{
 		Schema:                ReceiptSchema,
-		Protocol:              "gooo-release-transport-conformer/v4",
+		Protocol:              "gooo-release-transport-conformer/v5",
 		ContractID:            contract.ContractID,
 		ContractDigest:        DigestBytes(sourceRaw),
 		SourceDigest:          DigestBytes(sourceRaw),
@@ -116,7 +116,7 @@ func Generate(options GenerateOptions) (Receipt, error) {
 		OutputFiles:           append([]string(nil), OutputFiles...),
 		ArtifactDigests:       artifactDigests,
 		Inventory:             inventory,
-		Tests:                 TestCounts{Total: 18, Selected: 18, Executed: 18, Reused: 0, Failed: 0, Unknown: 0},
+		Tests:                 TestCounts{Total: 20, Selected: 20, Executed: 20, Reused: 0, Failed: 0, Unknown: 0},
 		Measurements:          StageMeasurements{},
 		OperationalAudit: OperationalAudit{
 			State:                             Refuted,
@@ -131,7 +131,7 @@ func Generate(options GenerateOptions) (Receipt, error) {
 			LocalTestExecutions:               1,
 			CIAuthority:                       "GITHUB_ACTIONS_ONLY_FROM_PR_ONWARD",
 		},
-		ScopeNote: "CLOSED means the eighteen declared release-transport contracts were classified as expected; it is not a global safety claim.",
+		ScopeNote: "CLOSED means the twenty declared release-transport contracts were classified as expected; it is not a global safety claim.",
 	}
 	report := RenderHumanReport(receipt)
 	reportRaw := []byte(report)
@@ -194,6 +194,7 @@ func renderEvents(activities []Activity, operatorDigest, sourceDigest, workflowD
 		operatorDigest,
 		sourceDigest,
 		workflowDigest,
+		"create-response-draft-id",
 		"draft-list-id-and-source-target",
 		"peeled-annotated-tag-target",
 		"release-upload-url",
@@ -207,6 +208,7 @@ func renderEvents(activities []Activity, operatorDigest, sourceDigest, workflowD
 		"operator-policy-receipt-bound",
 		"source-run-artifact-bound",
 		"draft-first-workflow-generated",
+		"created-draft-id-used",
 		"existing-draft-reconciled",
 		"symbolic-target-resolved-through-peeled-tag",
 		"release-upload-url-bound",

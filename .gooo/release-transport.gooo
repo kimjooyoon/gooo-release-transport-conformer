@@ -1,12 +1,13 @@
-contract "gooo-release-transport-conformer/v4" {
+contract "gooo-release-transport-conformer/v5" {
   authority "metacode"
   precedence "REFUTED" "UNKNOWN" "CLOSED"
   unknown_fields "stage" "step" "reason" "unknown_class" "next_operation" "blocked_by"
-  denominator id "release-transport-v4" count "18"
+  denominator id "release-transport-v5" count "20"
   activity id "declare-release-transport-protocol" name "DeclareReleaseTransportProtocol" proof "TRANSPORT_PROTOCOL_DECLARED" artifact "transport-manifest.json" authority "READ_ONLY"
   activity id "bind-operator-policy-receipt" name "BindOperatorPolicyReceipt" proof "EXTERNAL_IMMUTABLE_DIGEST_BOUND" artifact "transport-manifest.json" authority "READ_ONLY"
   activity id "bind-source-run-artifact" name "BindSourceRunArtifact" proof "SOURCE_RUN_SHA_BOUND" artifact "transport-manifest.json" authority "READ_ONLY"
   activity id "generate-draft-first-workflow" name "GenerateDraftFirstWorkflow" proof "DRAFT_ASSETS_PUBLISH_ORDER_GENERATED" artifact "release-workflow.yml" authority "READ_ONLY"
+  activity id "use-created-draft-id" name "UseCreatedDraftID" proof "CREATE_RESPONSE_DRAFT_ID_USED" artifact "release-workflow.yml" authority "READ_ONLY"
   activity id "reconcile-existing-draft" name "ReconcileExistingDraft" proof "EXACT_DRAFT_RESUMED_BY_LIST_ID" artifact "release-workflow.yml" authority "READ_ONLY"
   activity id "resolve-symbolic-release-target" name "ResolveSymbolicReleaseTarget" proof "SYMBOLIC_TARGET_RESOLVED_BY_PEELED_TAG" artifact "release-workflow.yml" authority "READ_ONLY"
   activity id "use-release-upload-url" name "UseReleaseUploadURL" proof "UPLOADS_GITHUB_COM_UPLOAD_URL_BOUND" artifact "release-workflow.yml" authority "READ_ONLY"
@@ -32,4 +33,6 @@ contract "gooo-release-transport-conformer/v4" {
   scenario ordinal "16" id "upload-assets-via-api-endpoint" expected "REFUTED"
   scenario ordinal "17" id "reconcile-symbolic-target-with-peeled-tag-target" expected "CLOSED"
   scenario ordinal "18" id "treat-symbolic-target-commitish-as-exact-commit" expected "REFUTED"
+  scenario ordinal "19" id "continue-with-create-response-draft-id" expected "CLOSED"
+  scenario ordinal "20" id "require-immediate-draft-list-visibility-after-create" expected "REFUTED"
 }

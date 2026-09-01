@@ -105,17 +105,41 @@ jobs:
           tag_drafts=$(jq --arg tag "$RELEASE_TAG" '[.[] | select(.tag_name == $tag and .draft == true)]' <<<"$release_list")
           draft_count=$(jq 'length' <<<"$tag_drafts")
           if [[ "$draft_count" = 0 ]]; then
-            gh release create "$RELEASE_TAG" --target "$EXPECTED_SHA" --verify-tag --draft --title "gooo release transport $RELEASE_TAG" \
-              --notes "Draft release; exact list-ID reconciliation must pass before publication."
+            draft_response=$(gh api --method POST "repos/$GITHUB_REPOSITORY/releases" \
+              -f "tag_name=$RELEASE_TAG" \
+              -f "target_commitish=$EXPECTED_SHA" \
+              -f "name=gooo release transport $RELEASE_TAG" \
+              -f "body=Draft release; the create-response ID is authoritative before list visibility." \
+              -F draft=true)
+            CREATED_DRAFT_ID=$(jq -r '.id // empty' <<<"$draft_response")
+            test -n "$CREATED_DRAFT_ID"
+            echo "CREATED_DRAFT_ID=$CREATED_DRAFT_ID" >> "$GITHUB_ENV"
           elif [[ "$draft_count" != 1 ]]; then
             echo "refusing ambiguous draft set for $RELEASE_TAG" >&2
             exit 1
+          fi
+
+      - name: Use created draft ID from response
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -n "${CREATED_DRAFT_ID:-}" ]]; then
+            draft_detail=$(gh api "repos/$GITHUB_REPOSITORY/releases/$CREATED_DRAFT_ID")
+            jq -e --arg tag "$RELEASE_TAG" '.id != null and .tag_name == $tag and .draft == true and (.target_commitish // "") != ""' <<<"$draft_detail" >/dev/null
+            DRAFT_ID=$(jq -r '.id' <<<"$draft_detail")
+            DRAFT_TARGET_COMMITISH=$(jq -r '.target_commitish' <<<"$draft_detail")
+            test "$DRAFT_ID" = "$CREATED_DRAFT_ID"
+            echo "DRAFT_ID=$DRAFT_ID" >> "$GITHUB_ENV"
+            echo "DRAFT_TARGET_COMMITISH=$DRAFT_TARGET_COMMITISH" >> "$GITHUB_ENV"
           fi
 
       - name: Reconcile existing draft by list ID
         shell: bash
         run: |
           set -Eeuo pipefail
+          if [[ -n "${CREATED_DRAFT_ID:-}" ]]; then
+            exit 0
+          fi
           release_list=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")
           tag_drafts=$(jq --arg tag "$RELEASE_TAG" '[.[] | select(.tag_name == $tag and .draft == true) | {id,tag_name,draft,target_commitish}]' <<<"$release_list")
           test "$(jq 'length' <<<"$tag_drafts")" = 1

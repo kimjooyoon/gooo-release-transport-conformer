@@ -20,10 +20,10 @@ actual=$(find "$output" -maxdepth 1 -type f -exec basename {} \; | sort | paste 
 test "$actual" = "conformance-receipt.json,human-report.md,release-workflow.yml,transport-events.ndjson,transport-manifest.json"
 
 jq -e '
-  .schema == "gooo/release-transport-conformer/conformance-receipt/v4" and
-  .decision == "CLOSED" and .conformance_closed == true and .denominator == 18 and
-  .summary == {CLOSED:7, UNKNOWN:3, REFUTED:8} and
-  (.scenarios | length) == 18 and
+  .schema == "gooo/release-transport-conformer/conformance-receipt/v5" and
+  .decision == "CLOSED" and .conformance_closed == true and .denominator == 20 and
+  .summary == {CLOSED:8, UNKNOWN:3, REFUTED:9} and
+  (.scenarios | length) == 20 and
   (.scenarios | map(.id)) == [
     "draft-assets-publish-immutable", "deterministic-replay", "all-asset-digests-match",
     "exact-annotated-tag-target", "missing-operator-immutable-policy-receipt", "stale-source-run",
@@ -31,10 +31,11 @@ jq -e '
     "checksum-path-mismatch", "user-token-secret-or-admin-endpoint-in-actions",
     "resume-existing-exact-draft-by-list-id", "existing-draft-target-or-assets-mismatch",
     "upload-assets-via-release-upload-url", "upload-assets-via-api-endpoint",
-    "reconcile-symbolic-target-with-peeled-tag-target", "treat-symbolic-target-commitish-as-exact-commit"
+    "reconcile-symbolic-target-with-peeled-tag-target", "treat-symbolic-target-commitish-as-exact-commit",
+    "continue-with-create-response-draft-id", "require-immediate-draft-list-visibility-after-create"
   ] and
   ([.scenarios[] | select(.decision == "UNKNOWN") | .unknown | (.stage != "" and .step != "" and .reason != "" and .unknown_class != "" and .next_operation != "" and (.blocked_by|length) > 0)] | all) and
-  (.activity_binding_counts | length) == 11 and
+  (.activity_binding_counts | length) == 12 and
   ([.activity_binding_counts[]] | all(. == 1)) and
   .authority.repository_writes == 0 and .authority.commits == 0 and .authority.pushes == 0 and
   .authority.merges == 0 and .authority.tags == 0 and .authority.releases == 0 and
@@ -63,8 +64,10 @@ upload_line=$(grep -n 'Upload every release asset' "$workflow" | cut -d: -f1)
 publish_line=$(grep -n 'Publish release after all uploads' "$workflow" | cut -d: -f1)
 verify_line=$(grep -n 'Verify public immutable release' "$workflow" | cut -d: -f1)
 resolve_target_line=$(grep -n 'Resolve symbolic release target through peeled tag' "$workflow" | cut -d: -f1)
+created_id_line=$(grep -n 'Use created draft ID from response' "$workflow" | cut -d: -f1)
 upload_url_line=$(grep -n 'Use release upload URL from draft detail' "$workflow" | cut -d: -f1)
 test "$draft_line" -lt "$upload_line"
+test "$created_id_line" -lt "$resolve_target_line"
 test "$resolve_target_line" -lt "$upload_url_line"
 test "$upload_url_line" -lt "$upload_line"
 test "$upload_line" -lt "$publish_line"
