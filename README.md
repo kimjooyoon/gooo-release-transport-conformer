@@ -5,8 +5,8 @@ standard, draft-first GitHub Actions release workflow and a fail-closed
 transport receipt. The `.gooo` declaration owns the release state machine;
 Go only parses, evaluates, and generates caller-owned output.
 
-The fixed denominator has exactly fourteen scenarios: five closed transport
-contracts, three explicit unknowns, and six preserved refutations. Scenario
+The fixed denominator has exactly sixteen scenarios: six closed transport
+contracts, three explicit unknowns, and seven preserved refutations. Scenario
 resolution precedence is `REFUTED > UNKNOWN > CLOSED`. Every unknown carries
 `stage`, `step`, `reason`, `unknown_class`, `next_operation`, and `blocked_by`.
 The top-level receipt is `CLOSED` only when all twelve declared scenarios are
@@ -25,16 +25,18 @@ files to an empty caller-owned output directory:
 The receipt also preserves an authoring audit. This checkout records two local
 test invocations and one actual local test execution during initial authoring;
 the operational state is `REFUTED` for that process fact. The semantic
-14-scenario result is separate, and from the PR onward GitHub Actions is the
+16-scenario result is separate, and from the PR onward GitHub Actions is the
 only verification authority. Product runtime authority remains zero for
 repository writes, commits, pushes, merges, tags, releases, and local product
 tests.
 
 The generated workflow uses only the standard `github.token`. It creates an
 annotated tag, creates or reconciles a draft release through the releases list
-API, resumes the exact draft by list-derived ID, uploads only when its asset
-names/digests are empty or identical, publishes only after upload, and verifies
-the public release, tag object, and asset digests. It does not call an
+API, resumes the exact draft by list-derived ID, reads the draft detail
+`upload_url`, removes its template, uploads binary assets only to the resulting
+`uploads.github.com` URL when names/digests are empty or identical, publishes
+only after upload, and verifies the public release, tag object, and asset
+digests. It does not call an
 administration endpoint or consume a user token secret. The operator
 immutable-release setting is enabled
 once by the explicit user-authenticated `scripts/enable-immutable-releases.sh`

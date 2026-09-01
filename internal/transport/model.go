@@ -3,10 +3,10 @@ package transport
 import "encoding/json"
 
 const (
-	ContractSchema = "gooo/release-transport-conformer/transport-contract/v2"
-	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v2"
-	EventsSchema   = "gooo/release-transport-conformer/transport-events/v2"
-	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v2"
+	ContractSchema = "gooo/release-transport-conformer/transport-contract/v3"
+	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v3"
+	EventsSchema   = "gooo/release-transport-conformer/transport-events/v3"
+	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v3"
 	Toolchain      = "go1.27.0"
 )
 
@@ -26,6 +26,7 @@ var RequiredActivities = []string{
 	"BindSourceRunArtifact",
 	"GenerateDraftFirstWorkflow",
 	"ReconcileExistingDraft",
+	"UseReleaseUploadURL",
 	"VerifyAnnotatedTagTarget",
 	"VerifyPublicAssetDigests",
 	"PreserveTransportCounterexample",
@@ -107,6 +108,10 @@ type TransportObservation struct {
 	ExistingDraftAssets      string                 `json:"existing_draft_assets"`
 	ReconciledDraft          bool                   `json:"reconciled_draft"`
 	ExistingDraftMismatch    bool                   `json:"existing_draft_mismatch"`
+	DraftUploadURL           string                 `json:"draft_upload_url"`
+	UploadURLTemplateRemoved bool                   `json:"upload_url_template_removed"`
+	UploadEndpoint           string                 `json:"upload_endpoint"`
+	BinaryUploadViaAPI       bool                   `json:"binary_upload_via_api"`
 	DraftCreated             bool                   `json:"draft_created"`
 	AssetsUploaded           bool                   `json:"assets_uploaded"`
 	Published                bool                   `json:"published"`

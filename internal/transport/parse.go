@@ -118,8 +118,8 @@ func ParseContract(raw []byte) (Contract, error) {
 }
 
 func ValidateContract(contract Contract) error {
-	if contract.ContractID == "" || contract.Authority != "metacode" || contract.Denominator != 14 || len(contract.Scenarios) != 14 {
-		return errors.New("contract must declare the fixed 14-scenario denominator")
+	if contract.ContractID == "" || contract.Authority != "metacode" || contract.Denominator != 16 || len(contract.Scenarios) != 16 {
+		return errors.New("contract must declare the fixed 16-scenario denominator")
 	}
 	if len(contract.Precedence) != 3 || contract.Precedence[0] != Refuted || contract.Precedence[1] != Unknown || contract.Precedence[2] != Closed {
 		return errors.New("contract precedence must be REFUTED > UNKNOWN > CLOSED")
@@ -160,6 +160,8 @@ func ValidateContract(contract Contract) error {
 		{"user-token-secret-or-admin-endpoint-in-actions", Refuted, ""},
 		{"resume-existing-exact-draft-by-list-id", Closed, ""},
 		{"existing-draft-target-or-assets-mismatch", Refuted, ""},
+		{"upload-assets-via-release-upload-url", Closed, ""},
+		{"upload-assets-via-api-endpoint", Refuted, ""},
 	}
 	for i, scenario := range contract.Scenarios {
 		wantScenario := want[i]

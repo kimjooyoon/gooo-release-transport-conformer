@@ -121,6 +121,16 @@ func EvaluateScenario(spec ScenarioSpec, observation TransportObservation) Scena
 			return refuted("EXISTING_DRAFT_MISMATCH", "existing draft target or asset names/digests differ, so the workflow must fail closed")
 		}
 		return closed("existing draft target and assets match")
+	case "upload-assets-via-release-upload-url":
+		if strings.HasPrefix(observation.DraftUploadURL, "https://uploads.github.com/") && observation.UploadURLTemplateRemoved && observation.UploadEndpoint == "RELEASE_UPLOAD_URL" && !observation.BinaryUploadViaAPI {
+			return closed("binary assets use the draft detail upload_url after removing the template")
+		}
+		return refuted("RELEASE_UPLOAD_URL_MISSING", "binary asset upload did not use the draft detail uploads.github.com URL")
+	case "upload-assets-via-api-endpoint":
+		if observation.BinaryUploadViaAPI || observation.UploadEndpoint == "API_RELEASE_ASSETS" {
+			return refuted("API_ASSET_UPLOAD_ENDPOINT", "binary asset upload used the api.github.com release-assets endpoint")
+		}
+		return closed("binary asset upload did not use the API release-assets endpoint")
 	default:
 		return refuted("UNDECLARED_SCENARIO", "scenario is not part of the fixed transport denominator")
 	}
@@ -139,13 +149,16 @@ func fixedObservation(id, workflow string) TransportObservation {
 		GitIdentity:    GitIdentityObservation{Name: "github-actions[bot]", Email: "41898282+github-actions[bot]@users.noreply.github.com"},
 		Assets:         assets,
 		Tag:            TagObservation{Exists: false, Annotated: true, ObjectType: "tag", ObjectSHA: "sha256:annotated-tag-object", TargetCommit: "merge-commit", ExpectedCommit: "merge-commit"},
-		DraftID:        "draft-123",
-		DraftTag:       "v0.1.1",
-		DraftSourceTarget: "merge-commit",
-		ExistingDraftAssets: "empty",
-		ReconciledDraft: true,
-		DraftCreated:   true, AssetsUploaded: true, Published: true, PublishedImmutable: true,
-		DeterministicReplay: true,
+		DraftID:                  "draft-123",
+		DraftTag:                 "v0.1.1",
+		DraftSourceTarget:        "merge-commit",
+		ExistingDraftAssets:      "empty",
+		ReconciledDraft:          true,
+		DraftUploadURL:           "https://uploads.github.com/repos/example/releases/123/assets",
+		UploadURLTemplateRemoved: true,
+		UploadEndpoint:           "RELEASE_UPLOAD_URL",
+		DraftCreated:             true, AssetsUploaded: true, Published: true, PublishedImmutable: true,
+		DeterministicReplay:      true,
 	}
 	switch id {
 	case "missing-operator-immutable-policy-receipt":
@@ -172,6 +185,9 @@ func fixedObservation(id, workflow string) TransportObservation {
 		observation.DraftSourceTarget = "different-commit"
 		observation.ExistingDraftAssets = "mismatch"
 		observation.ExistingDraftMismatch = true
+	case "upload-assets-via-api-endpoint":
+		observation.BinaryUploadViaAPI = true
+		observation.UploadEndpoint = "API_RELEASE_ASSETS"
 	}
 	return observation
 }
@@ -180,6 +196,7 @@ func workflowOrderValid(workflow string) bool {
 	markers := []string{
 		"Create draft release before assets",
 		"Reconcile existing draft by list ID",
+		"Use release upload URL from draft detail",
 		"Upload every release asset",
 		"Publish release after all uploads",
 		"Verify public immutable release",

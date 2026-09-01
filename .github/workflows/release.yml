@@ -122,6 +122,22 @@ jobs:
           test "$DRAFT_ID" != null
           echo "DRAFT_ID=$DRAFT_ID" >> "$GITHUB_ENV"
 
+      - name: Use release upload URL from draft detail
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          draft_detail=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID")
+          UPLOAD_URL=$(jq -r '.upload_url // empty' <<<"$draft_detail")
+          case "$UPLOAD_URL" in
+            https://uploads.github.com/*) ;;
+            *) echo "draft upload_url is not an uploads.github.com URL" >&2; exit 1 ;;
+          esac
+          if [[ "$UPLOAD_URL" == *"{"* || "$UPLOAD_URL" == *"}"* ]]; then
+            echo "draft upload_url template was not removed" >&2
+            exit 1
+          fi
+          echo "UPLOAD_URL=$UPLOAD_URL" >> "$GITHUB_ENV"
+
       - name: Assemble release assets and checksums
         shell: bash
         run: |
@@ -147,13 +163,14 @@ jobs:
           evidence_digest="sha256:$(sha256sum "$RELEASE_DIR/$evidence_name" | awk '{print $1}')"
           checksum_digest="sha256:$(sha256sum "$RELEASE_DIR/$checksum_name" | awk '{print $1}')"
           desired=$(jq -S -n --arg sn "$source_name" --arg sd "$source_digest" --arg en "$evidence_name" --arg ed "$evidence_digest" --arg cn "$checksum_name" --arg cd "$checksum_digest" '[{name:$sn,digest:$sd},{name:$en,digest:$ed},{name:$cn,digest:$cd}]')
+          upload_base="${UPLOAD_URL%%\{*}"
           existing=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID/assets?per_page=100")
           existing_normalized=$(jq -S 'map({name,digest}) | sort_by(.name)' <<<"$existing")
           desired_normalized=$(jq -S 'sort_by(.name)' <<<"$desired")
           existing_count=$(jq 'length' <<<"$existing_normalized")
           if [[ "$existing_count" = 0 ]]; then
             for asset in "$source_name" "$evidence_name" "$checksum_name"; do
-              gh api --method POST -H 'Content-Type: application/octet-stream' --input "$RELEASE_DIR/$asset" "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID/assets?name=$asset" >/dev/null
+              gh api --method POST -H 'Content-Type: application/octet-stream' --input "$RELEASE_DIR/$asset" "$upload_base?name=$asset" >/dev/null
             done
           elif [[ "$existing_normalized" != "$desired_normalized" ]]; then
             echo "existing draft assets do not exactly match desired names and digests" >&2

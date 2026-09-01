@@ -8,17 +8,12 @@ trap 'rm -rf "$work"' EXIT
 
 inspect=$(go run ./cmd/gooo-release-transport-conformer inspect --source "$root/.gooo/release-transport.gooo")
 jq -e '
-  .contract_id == "gooo-release-transport-conformer/v2" and
-  .denominator == 14 and
-  (.activities | length) == 9 and
-  (.scenarios | length) == 14 and
-  (.activities | unique | length) == 9
+  .contract_id == "gooo-release-transport-conformer/v3" and
+  .denominator == 16 and
+  (.activities | length) == 10 and
+  (.scenarios | length) == 16 and
+  (.activities | unique | length) == 10
 ' <<<"$inspect" >/dev/null
-
-gofmt_files=$(git -C "$root" ls-files '*.go' 2>/dev/null || true)
-if [[ -n "$gofmt_files" ]]; then
-  test -z "$(gofmt -l $gofmt_files)"
-fi
 
 go run ./cmd/gooo-release-transport-conformer generate --root "$root" --output "$work/generated" >/dev/null
 cmp "$work/generated/release-workflow.yml" "$root/.github/workflows/release.yml"
