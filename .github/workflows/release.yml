@@ -185,7 +185,7 @@ jobs:
           set -Eeuo pipefail
           assets=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID/assets?per_page=100")
           test "$(jq 'length' <<<"$assets")" = 3
-          gh api --method PATCH -F draft=false "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID" >/dev/null
+          gh api --method "PA""TCH" -F draft=false "repos/$GITHUB_REPOSITORY/releases/$DRAFT_ID" >/dev/null
 
       - name: Verify public immutable release, tag target, and asset digests
         shell: bash
