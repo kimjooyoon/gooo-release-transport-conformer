@@ -44,7 +44,7 @@ func TestSemanticIROwnsReleaseTransportBoundary(t *testing.T) {
 	if err := ValidateSemanticIR(ir); err != nil {
 		t.Fatal(err)
 	}
-	if ir.Version.Version != "0.1.6" || ir.PreviousRelease.ReleaseID != "380375220" || ir.Terminal != "FIXED_POINT" {
+	if ir.Version.Version != "0.1.7" || ir.PreviousRelease.ReleaseID != "380375220" || ir.Terminal != "FIXED_POINT" {
 		t.Fatalf("semantic IR lost release identity: %+v", ir)
 	}
 	if !sameStates(ir.States, RequiredStates) || !sameTransitions(ir.Transitions, RequiredTransitions) {
