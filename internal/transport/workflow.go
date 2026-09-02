@@ -35,9 +35,9 @@ jobs:
       WORKFLOW_SHA: ${{ github.sha }}
       MERGED_PR_NUMBER: ${{ inputs.merged_pr_number }}
       OPERATOR_POLICY_RECEIPT_DIGEST: ${{ inputs.operator_policy_receipt_digest }}
-      RELEASE_VERSION: 0.1.5
-      RELEASE_TAG: v0.1.5
-      NEXT_VERSION: 0.1.6
+      RELEASE_VERSION: 0.1.6
+      RELEASE_TAG: v0.1.6
+      NEXT_VERSION: 0.1.7
       GH_TOKEN: ${{ github.token }}
       ATTEMPT_ID: gooo-${{ github.run_id }}-${{ github.run_attempt }}
       RELEASE_STATE: PRECHECK
@@ -77,8 +77,8 @@ jobs:
           test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/previous-release-detail.json" | awk '{print $1}')" = "sha256:317536372b80224bdafc85e1f29decc34a61314ae91e978fd381dd69c9978a19"
           test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/previous-tag-ref.json" | awk '{print $1}')" = "sha256:29458c096556f87f95606ae649600efa570c490710c7876751c954b56473729e"
           test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/merged-pr.json" | awk '{print $1}')" = "sha256:4113d99d48a2f847295ac40ce84f1bfcac83ddb2f84acbb3bad4fa66e3b18de1"
-          test "sha256:$(sha256sum "$fixture" | awk '{print $1}')" = "sha256:e1f56a8b62f97e139567cc663fd09d40a26f3f99a98ab325ec1f2a688c06c100"
-          test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/expected-asset-manifest.json" | awk '{print $1}')" = "sha256:566ce986b28947c0beb61bb63532f4a43514a84475e79e545e3f1bb3f5f0a20a"
+          test "sha256:$(sha256sum "$fixture" | awk '{print $1}')" = "sha256:0f954255f62b51229e666a8f10b973c45f7f496088574c4173632da37416ce5a"
+          test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/expected-asset-manifest.json" | awk '{print $1}')" = "sha256:187b314a5a9a059961c649a41d910bebe5053f2315cc8d270807217fb5004fca"
           jq -e '
             .schema == "gooo/release-transport-conformer/fixture-api-conformance/v1" and
             .terminal == "FIXED_POINT" and
@@ -96,7 +96,7 @@ jobs:
           ' "$fixture" >/dev/null
           jq -e '[.responses[] | select(.mutation == true) | .endpoint] | all(.[]; (contains("uploads.github.com") or . == "git/refs" or . == "releases" or . == "releases/{draft_id}"))' "$fixture" >/dev/null
           jq -e 'any(.responses[]; .id == "new-annotated-tag" and .payload.type == "tag" and .payload.target == "exact_commit") and any(.responses[]; .id == "draft-release" and .payload.draft == true and .payload.target_commitish == "exact_commit") and any(.responses[]; .id == "release-asset-upload" and .payload.manifest == "name,size,digest") and any(.responses[]; .id == "publish-draft" and .payload.draft == false)' "$fixture" >/dev/null
-          jq -e '.schema == "gooo/release-transport-conformer/asset-manifest-fixture/v1" and .version == "0.1.5" and (.assets | length) == 3 and (.assets | all(.[]; .name != "" and (.size|type) == "number" and (.digest|startswith("sha256:"))))' "$GITHUB_WORKSPACE/fixtures/api/v6/expected-asset-manifest.json" >/dev/null
+          jq -e '.schema == "gooo/release-transport-conformer/asset-manifest-fixture/v1" and .version == "0.1.6" and (.assets | length) == 3 and (.assets | all(.[]; .name != "" and (.size|type) == "number" and (.digest|startswith("sha256:"))))' "$GITHUB_WORKSPACE/fixtures/api/v6/expected-asset-manifest.json" >/dev/null
           echo 'PREMUTATION_FIXTURE_CONFORMANCE=true' >> "$GITHUB_ENV"
 
       - name: PRECHECK exact lineage policy and unused version
@@ -129,7 +129,7 @@ jobs:
           printf '%s\n' "$previous" > "$ATTEMPT_DIR/previous-release-api-receipt.json"
           printf '%s\n' "$previous_ref" > "$ATTEMPT_DIR/previous-tag-ref-api-receipt.json"
 
-          burned='["0.0.1","0.0.2","0.0.3","0.1.4"]'
+          burned='["0.0.1","0.0.2","0.0.3","0.1.4","0.1.5"]'
           if jq -e --arg version "$RELEASE_VERSION" 'index($version) != null' <<<"$burned" >/dev/null; then
             echo 'requested release version is burned; preserve refusal and advance to the next patch' >&2
             exit 1
@@ -208,9 +208,9 @@ jobs:
           evidence_name="evidence-$RELEASE_TAG.tar.gz"
           checksum_name="SHA256SUMS"
           expected_manifest=$(jq -S -n \
-            --arg sn "$source_name" --arg ss "$(wc -c < "$RELEASE_DIR/$source_name" | tr -d ' ')" --arg sd "sha256:$(sha256sum "$RELEASE_DIR/$source_name" | awk '{print $1}')" \
-            --arg en "$evidence_name" --arg es "$(wc -c < "$RELEASE_DIR/$evidence_name" | tr -d ' ')" --arg ed "sha256:$(sha256sum "$RELEASE_DIR/$evidence_name" | awk '{print $1}')" \
-            --arg cn "$checksum_name" --arg cs "$(wc -c < "$RELEASE_DIR/$checksum_name" | tr -d ' ')" --arg cd "sha256:$(sha256sum "$RELEASE_DIR/$checksum_name" | awk '{print $1}')" \
+            --arg sn "$source_name" --argjson ss "$(wc -c < "$RELEASE_DIR/$source_name" | tr -d ' ')" --arg sd "sha256:$(sha256sum "$RELEASE_DIR/$source_name" | awk '{print $1}')" \
+            --arg en "$evidence_name" --argjson es "$(wc -c < "$RELEASE_DIR/$evidence_name" | tr -d ' ')" --arg ed "sha256:$(sha256sum "$RELEASE_DIR/$evidence_name" | awk '{print $1}')" \
+            --arg cn "$checksum_name" --argjson cs "$(wc -c < "$RELEASE_DIR/$checksum_name" | tr -d ' ')" --arg cd "sha256:$(sha256sum "$RELEASE_DIR/$checksum_name" | awk '{print $1}')" \
             '[{name:$sn,size:$ss,digest:$sd},{name:$en,size:$es,digest:$ed},{name:$cn,size:$cs,digest:$cd}]')
           printf '%s\n' "$expected_manifest" > "$RELEASE_DIR/expected-asset-manifest.json"
           assets=$(gh api "repos/$GITHUB_REPOSITORY/releases/$DRAFT_RELEASE_ID/assets?per_page=100")
