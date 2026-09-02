@@ -289,5 +289,10 @@ func isSHA256Digest(value string) bool {
 	if len(value) != len("sha256:")+64 || !strings.HasPrefix(value, "sha256:") {
 		return false
 	}
-	return isExactSHA(value[len("sha256:"):])
+	for _, char := range strings.ToLower(value[len("sha256:"):]) {
+		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f')) {
+			return false
+		}
+	}
+	return true
 }
