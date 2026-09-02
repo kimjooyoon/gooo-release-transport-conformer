@@ -44,7 +44,7 @@ func TestSemanticIROwnsReleaseTransportBoundary(t *testing.T) {
 	if err := ValidateSemanticIR(ir); err != nil {
 		t.Fatal(err)
 	}
-	if ir.Version.Version != "0.1.4" || ir.PreviousRelease.ReleaseID != "380375220" || ir.Terminal != "FIXED_POINT" {
+	if ir.Version.Version != "0.1.5" || ir.PreviousRelease.ReleaseID != "380375220" || ir.Terminal != "FIXED_POINT" {
 		t.Fatalf("semantic IR lost release identity: %+v", ir)
 	}
 	if !sameStates(ir.States, RequiredStates) || !sameTransitions(ir.Transitions, RequiredTransitions) {
@@ -93,7 +93,7 @@ func TestWorkflowIsStandardTokenDraftFirstAndAdminFree(t *testing.T) {
 	}
 }
 
-func TestGenerateWritesExactlyFiveCallerOwnedFiles(t *testing.T) {
+func TestGenerateWritesExactlySixCallerOwnedFiles(t *testing.T) {
 	root := repositoryRoot(t)
 	out := t.TempDir()
 	if _, err := Generate(GenerateOptions{Root: root, Output: out}); err != nil {

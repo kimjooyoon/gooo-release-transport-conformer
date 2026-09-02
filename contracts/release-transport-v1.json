@@ -16,28 +16,29 @@
     {"from": "ASSETS_UPLOADED", "to": "ASSETS_AUDITED"},
     {"from": "ASSETS_AUDITED", "to": "PUBLISHED_IMMUTABLE"}
   ],
-  "version_declaration": {"version": "0.1.4", "tag": "v0.1.4", "stream": "gooo-release-transport-conformer", "patch_only": true, "next_version": "0.1.5"},
+  "version_declaration": {"version": "0.1.5", "tag": "v0.1.5", "stream": "gooo-release-transport-conformer", "patch_only": true, "next_version": "0.1.6"},
   "previous_release": {"repository": "kimjooyoon/gooo-release-transport-conformer", "version": "0.1.3", "tag": "v0.1.3", "release_id": "380375220", "tag_object_sha": "036d3f9dcfb81511b64a34ae360ecd58b0e58fdd", "target_commit_sha": "932c98e97ca61bd4f64764a9793c3dabfd05c359", "immutable": true, "assets": [{"id":"539322879","name":"SHA256SUMS","size":"176","digest":"sha256:725f0a4ef23360a48ca717aa48a8ab605d1b5404917e035372152630aceadbb6"},{"id":"539322868","name":"evidence-v0.1.3.tar.gz","size":"7518","digest":"sha256:acebe4be411d0690991fed517daa4610b5dcca72ff185a372d0f9ff0e749ccc4"},{"id":"539322857","name":"source-v0.1.3.tar.gz","size":"27484","digest":"sha256:309b0868bfca9ff51048c66db76c758e321f4df513455f666012fbab15ac66c6"}]},
   "merged_pr_lineage": {"repository": "kimjooyoon/gooo-release-transport-conformer", "number": "DISPATCH_MERGED_PR_NUMBER", "base_branch": "main", "head_sha": "DISPATCH_MERGED_PR_HEAD_SHA", "merge_commit_sha": "DISPATCH_EXACT_MAIN_MERGE_SHA", "merged": true},
   "exact_target_commit": {"value": "DISPATCH_EXACT_MAIN_MERGE_SHA", "source": "workflow_dispatch.expected_sha", "exact": true},
-  "annotated_tag": {"tag": "v0.1.4", "object_sha": "RUNTIME_ANNOTATED_TAG_OBJECT_SHA", "target_commit_sha": "DISPATCH_EXACT_MAIN_MERGE_SHA", "annotated": true},
-  "draft_release": {"id": "RUNTIME_CREATE_RESPONSE_DRAFT_RELEASE_ID", "tag": "v0.1.4", "target_commitish": "DISPATCH_EXACT_MAIN_MERGE_SHA", "draft": true},
+  "annotated_tag": {"tag": "v0.1.5", "object_sha": "RUNTIME_ANNOTATED_TAG_OBJECT_SHA", "target_commit_sha": "DISPATCH_EXACT_MAIN_MERGE_SHA", "annotated": true},
+  "draft_release": {"id": "RUNTIME_CREATE_RESPONSE_DRAFT_RELEASE_ID", "tag": "v0.1.5", "target_commitish": "DISPATCH_EXACT_MAIN_MERGE_SHA", "draft": true},
   "expected_asset_manifest": [
-    {"name": "source-v0.1.4.tar.gz", "size": "RUNTIME_BYTES_FROM_SOURCE_ARCHIVE", "digest": "RUNTIME_SHA256_FROM_SOURCE_ARCHIVE"},
-    {"name": "evidence-v0.1.4.tar.gz", "size": "RUNTIME_BYTES_FROM_EVIDENCE_ARCHIVE", "digest": "RUNTIME_SHA256_FROM_EVIDENCE_ARCHIVE"},
+    {"name": "source-v0.1.5.tar.gz", "size": "RUNTIME_BYTES_FROM_SOURCE_ARCHIVE", "digest": "RUNTIME_SHA256_FROM_SOURCE_ARCHIVE"},
+    {"name": "evidence-v0.1.5.tar.gz", "size": "RUNTIME_BYTES_FROM_EVIDENCE_ARCHIVE", "digest": "RUNTIME_SHA256_FROM_EVIDENCE_ARCHIVE"},
     {"name": "SHA256SUMS", "size": "RUNTIME_BYTES_FROM_CHECKSUM_MANIFEST", "digest": "RUNTIME_SHA256_FROM_CHECKSUM_MANIFEST"}
   ],
   "observed_api_receipts": [
     {"id": "previous-release-detail", "method": "GET", "endpoint": "repos/{repository}/releases/tags/v0.1.3", "status": 200, "response_digest": "sha256:317536372b80224bdafc85e1f29decc34a61314ae91e978fd381dd69c9978a19", "resource_id": "380375220", "fixture": "fixtures/api/v6/previous-release-detail.json"},
     {"id": "previous-tag-ref", "method": "GET", "endpoint": "repos/{repository}/git/ref/tags/v0.1.3", "status": 200, "response_digest": "sha256:29458c096556f87f95606ae649600efa570c490710c7876751c954b56473729e", "resource_id": "036d3f9dcfb81511b64a34ae360ecd58b0e58fdd", "fixture": "fixtures/api/v6/previous-tag-ref.json"},
     {"id": "merged-pr-lineage", "method": "GET", "endpoint": "repos/{repository}/pulls/{merged_pr_number}", "status": 200, "response_digest": "sha256:4113d99d48a2f847295ac40ce84f1bfcac83ddb2f84acbb3bad4fa66e3b18de1", "resource_id": "DISPATCH_MERGED_PR_NUMBER", "fixture": "fixtures/api/v6/merged-pr.json"},
-    {"id": "preflight-payload", "method": "FIXTURE", "endpoint": "fixtures/api/v6/conformance.json", "status": 200, "response_digest": "sha256:7913b16bb2f7ac0e670a512f2003299d67051db55da19d818bce140839be528d", "resource_id": "release-transport-v6", "fixture": "fixtures/api/v6/conformance.json"},
-    {"id": "expected-asset-manifest", "method": "FIXTURE", "endpoint": "fixtures/api/v6/expected-asset-manifest.json", "status": 200, "response_digest": "sha256:e6bfbbc9a1a734da8cc7994cc9b9b92ae0b876ec6c431bc0cad4833aee5a64f3", "resource_id": "v0.1.4", "fixture": "fixtures/api/v6/expected-asset-manifest.json"}
+    {"id": "preflight-payload", "method": "FIXTURE", "endpoint": "fixtures/api/v6/conformance.json", "status": 200, "response_digest": "sha256:e1f56a8b62f97e139567cc663fd09d40a26f3f99a98ab325ec1f2a688c06c100", "resource_id": "release-transport-v6", "fixture": "fixtures/api/v6/conformance.json"},
+    {"id": "expected-asset-manifest", "method": "FIXTURE", "endpoint": "fixtures/api/v6/expected-asset-manifest.json", "status": 200, "response_digest": "sha256:566ce986b28947c0beb61bb63532f4a43514a84475e79e545e3f1bb3f5f0a20a", "resource_id": "v0.1.5", "fixture": "fixtures/api/v6/expected-asset-manifest.json"}
   ],
   "burned_versions": [
     {"version": "0.0.1", "attempt_id": "historical-delete-retry-001", "reason": "failed public mutation was deleted during historical authoring", "receipt_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000001"},
     {"version": "0.0.2", "attempt_id": "historical-draft-reuse-002", "reason": "failed draft and tag were reused during historical authoring", "receipt_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"},
-    {"version": "0.0.3", "attempt_id": "historical-asset-mismatch-003", "reason": "asset manifest mismatch was observed after draft mutation", "receipt_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000003"}
+    {"version": "0.0.3", "attempt_id": "historical-asset-mismatch-003", "reason": "asset manifest mismatch was observed after draft mutation", "receipt_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000003"},
+    {"version": "0.1.4", "attempt_id": "gooo-33626205018-1", "reason": "asset upload step failed after public tag and draft/assets mutation; preserve all objects and never retry this version", "receipt_digest": "sha256:f1b0e3e942ca30031c67c549837b9f9f0d620115cb9682a063ccb06124f69320"}
   ],
   "activities": [
     {"id": "declare-release-transport-protocol", "name": "DeclareReleaseTransportProtocol", "proof": "TRANSPORT_PROTOCOL_DECLARED", "family": "FOUNDATION", "indicator": "DRIVER", "artifact": "semantic-ir.json", "authority": "READ_ONLY"},

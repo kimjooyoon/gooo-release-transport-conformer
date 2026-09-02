@@ -11,7 +11,7 @@ jq -e '
   .contract_id == "gooo-release-transport-conformer/v6" and
   .denominator == 32 and
   .semantic_ir_schema == "gooo/release-transport-conformer/semantic-ir/v6" and
-  .version.version == "0.1.4" and .previous_release.release_id == "380375220" and
+  .version.version == "0.1.5" and .previous_release.release_id == "380375220" and
   .states == ["PRECHECK","TAGGED","DRAFT_CREATED","ASSETS_UPLOADED","ASSETS_AUDITED","PUBLISHED_IMMUTABLE"] and
   (.transitions | length) == 5 and
   (.activities | length) == 12 and

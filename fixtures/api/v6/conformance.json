@@ -18,7 +18,7 @@
     {"id": "draft-release", "method": "POST", "endpoint": "releases", "status": 201, "mutation": true, "payload": {"draft": true, "target_commitish": "exact_commit"}},
     {"id": "release-asset-upload", "method": "POST", "endpoint": "uploads.github.com/releases/{draft_id}/assets", "status": 201, "mutation": true, "payload": {"manifest": "name,size,digest"}},
     {"id": "publish-draft", "method": "PATCH", "endpoint": "releases/{draft_id}", "status": 200, "mutation": true, "payload": {"draft": false}},
-    {"id": "public-immutable-release", "method": "GET", "endpoint": "releases/tags/v0.1.4", "status": 200, "mutation": false}
+    {"id": "public-immutable-release", "method": "GET", "endpoint": "releases/tags/v0.1.5", "status": 200, "mutation": false}
   ],
   "forbidden": [
     "compare/{base}...{head}",
