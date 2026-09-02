@@ -1,0 +1,15 @@
+{
+  "schema": "gooo/release-transport-conformer/api-response-fixture/v1",
+  "fixture_id": "merged-pr-lineage",
+  "method": "GET",
+  "endpoint": "repos/kimjooyoon/gooo-release-transport-conformer/pulls/{merged_pr_number}",
+  "status": 200,
+  "response": {
+    "merged": true,
+    "base": {"ref": "main", "repo": "kimjooyoon/gooo-release-transport-conformer"},
+    "head": {"sha": "DISPATCH_MERGED_PR_HEAD_SHA"},
+    "merge_commit_sha": "DISPATCH_EXACT_MAIN_MERGE_SHA"
+  },
+  "compare_api": {"used": false, "ambiguous": false},
+  "mutation": false
+}

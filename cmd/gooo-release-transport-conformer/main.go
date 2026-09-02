@@ -55,16 +55,27 @@ func inspect(args []string) {
 	if *path == "" {
 		fatal("--source is required")
 	}
-	contract, _, err := transport.LoadContract(*path)
+	contract, raw, err := transport.LoadContract(*path)
+	if err != nil {
+		fatal(err.Error())
+	}
+	ir, err := transport.BuildSemanticIR(contract, raw)
 	if err != nil {
 		fatal(err.Error())
 	}
 	printJSON(struct {
-		ContractID  string                   `json:"contract_id"`
-		Denominator int                      `json:"denominator"`
-		Activities  []string                 `json:"activities"`
-		Scenarios   []transport.ScenarioSpec `json:"scenarios"`
-	}{ContractID: contract.ContractID, Denominator: contract.Denominator, Activities: transport.RequiredActivities, Scenarios: contract.Scenarios})
+		ContractID       string                    `json:"contract_id"`
+		Denominator      int                       `json:"denominator"`
+		Activities       []string                  `json:"activities"`
+		Scenarios        []transport.ScenarioSpec  `json:"scenarios"`
+		SemanticIRSchema string                    `json:"semantic_ir_schema"`
+		Version          transport.VersionDeclaration `json:"version"`
+		PreviousRelease  transport.ImmutableReleaseIdentity `json:"previous_release"`
+		Target           transport.ExactTargetCommit `json:"exact_target_commit"`
+		States           []transport.ReleaseState  `json:"states"`
+		Transitions      []transport.Transition   `json:"transitions"`
+		Indicators       []transport.IndicatorSpec `json:"indicators"`
+	}{ContractID: contract.ContractID, Denominator: contract.Denominator, Activities: transport.RequiredActivities, Scenarios: contract.Scenarios, SemanticIRSchema: ir.Schema, Version: ir.Version, PreviousRelease: ir.PreviousRelease, Target: ir.ExactTarget, States: ir.States, Transitions: ir.Transitions, Indicators: ir.Indicators})
 }
 
 func printSummary(receipt transport.Receipt) {

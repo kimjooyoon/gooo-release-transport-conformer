@@ -84,12 +84,18 @@ func ParseContract(raw []byte) (Contract, error) {
 				return Contract{}, fmt.Errorf("line %d: invalid denominator count", lineNo)
 			}
 			contract.Denominator = count
+			previous, previousErr := strconv.Atoi(values["previous"])
+			if previousErr != nil {
+				return Contract{}, fmt.Errorf("line %d: invalid previous denominator", lineNo)
+			}
+			contract.PreviousDenominator = previous
+			contract.AppendOnly = values["append_only"] == "true"
 		case "activity":
 			values, err := pairs(tokens[1:])
 			if err != nil {
 				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
 			}
-			activity := Activity{ID: values["id"], Name: values["name"], Proof: values["proof"], Artifact: values["artifact"], Authority: values["authority"]}
+			activity := Activity{ID: values["id"], Name: values["name"], Proof: values["proof"], Family: values["family"], Indicator: values["indicator"], Artifact: values["artifact"], Authority: values["authority"]}
 			if activity.ID == "" || activity.Name == "" || activity.Proof == "" || activity.Artifact == "" || activity.Authority == "" {
 				return Contract{}, fmt.Errorf("line %d: incomplete activity", lineNo)
 			}
@@ -103,7 +109,98 @@ func ParseContract(raw []byte) (Contract, error) {
 			if err != nil {
 				return Contract{}, fmt.Errorf("line %d: invalid scenario ordinal", lineNo)
 			}
-			contract.Scenarios = append(contract.Scenarios, ScenarioSpec{Ordinal: ordinal, ID: values["id"], Expected: Decision(values["expected"]), UnknownClass: values["unknown_class"]})
+			contract.Scenarios = append(contract.Scenarios, ScenarioSpec{Ordinal: ordinal, ID: values["id"], Expected: Decision(values["expected"]), UnknownClass: values["unknown_class"], Family: values["family"], Indicator: values["indicator"], Resolution: values["resolution"]})
+		case "version":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.Version = VersionDeclaration{Version: values["value"], Tag: values["tag"], Stream: values["stream"], PatchOnly: values["patch_only"] == "true", NextVersion: values["next_version"]}
+		case "previous_release":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.PreviousRelease = ImmutableReleaseIdentity{Repository: values["repository"], Version: values["version"], Tag: values["tag"], ReleaseID: values["release_id"], TagObjectSHA: values["tag_object_sha"], TargetCommitSHA: values["target_commit_sha"], Immutable: values["immutable"] == "true"}
+		case "previous_asset":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.PreviousRelease.Assets = append(contract.PreviousRelease.Assets, ExpectedAsset{ID: values["id"], Name: values["name"], Size: values["size"], Digest: values["digest"]})
+		case "merged_pr":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.MergedPR = MergedPRLineage{Repository: values["repository"], Number: values["number"], BaseBranch: values["base_branch"], HeadSHA: values["head_sha"], MergeCommitSHA: values["merge_commit_sha"], Merged: values["merged"] == "true"}
+		case "target_commit":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.ExactTarget = ExactTargetCommit{Value: values["value"], Source: values["source"], Exact: values["exact"] == "true"}
+		case "annotated_tag":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.AnnotatedTag = AnnotatedTagDeclaration{Tag: values["tag"], ObjectSHA: values["object_sha"], TargetCommitSHA: values["target_commit_sha"], Annotated: values["annotated"] == "true"}
+		case "draft_release":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.DraftRelease = DraftReleaseDeclaration{ID: values["id"], Tag: values["tag"], TargetCommitish: values["target_commitish"], Draft: values["draft"] == "true"}
+		case "asset":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.ExpectedAssets = append(contract.ExpectedAssets, ExpectedAsset{ID: values["id"], Name: values["name"], Size: values["size"], Digest: values["digest"]})
+		case "api_receipt":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			status, err := strconv.Atoi(values["status"])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: invalid API receipt status", lineNo)
+			}
+			contract.APIReceipts = append(contract.APIReceipts, APIReceipt{ID: values["id"], Method: values["method"], Endpoint: values["endpoint"], Status: status, ResponseDigest: values["response_digest"], ResourceID: values["resource_id"], Fixture: values["fixture"]})
+		case "burned_version":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.BurnedVersions = append(contract.BurnedVersions, BurnedVersion{Version: values["version"], AttemptID: values["attempt_id"], Reason: values["reason"], ReceiptDigest: values["receipt_digest"]})
+		case "state_machine":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			contract.Terminal = values["terminal"]
+			for _, value := range strings.Split(values["states"], ",") {
+				if value != "" {
+					contract.States = append(contract.States, ReleaseState(value))
+				}
+			}
+			for _, value := range strings.Split(values["transitions"], ",") {
+				parts := strings.Split(value, ">")
+				if len(parts) == 2 {
+					contract.Transitions = append(contract.Transitions, Transition{From: ReleaseState(parts[0]), To: ReleaseState(parts[1])})
+				}
+			}
+		case "indicator":
+			values, err := pairs(tokens[1:])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			ordinal, err := strconv.Atoi(values["ordinal"])
+			if err != nil {
+				return Contract{}, fmt.Errorf("line %d: invalid indicator ordinal", lineNo)
+			}
+			contract.Indicators = append(contract.Indicators, IndicatorSpec{Ordinal: ordinal, ID: values["id"], Family: values["family"], Role: values["role"], Activity: values["activity"]})
 		default:
 			return Contract{}, fmt.Errorf("line %d: unsupported declaration %s", lineNo, tokens[0])
 		}
@@ -118,8 +215,8 @@ func ParseContract(raw []byte) (Contract, error) {
 }
 
 func ValidateContract(contract Contract) error {
-	if contract.ContractID == "" || contract.Authority != "metacode" || contract.Denominator != 20 || len(contract.Scenarios) != 20 {
-		return errors.New("contract must declare the fixed 20-scenario denominator")
+	if contract.ContractID == "" || contract.Authority != "metacode" || contract.Denominator != 32 || contract.PreviousDenominator != 20 || !contract.AppendOnly || len(contract.Scenarios) != 32 {
+		return errors.New("contract must declare the append-only 32-scenario denominator")
 	}
 	if len(contract.Precedence) != 3 || contract.Precedence[0] != Refuted || contract.Precedence[1] != Unknown || contract.Precedence[2] != Closed {
 		return errors.New("contract precedence must be REFUTED > UNKNOWN > CLOSED")
@@ -132,7 +229,7 @@ func ValidateContract(contract Contract) error {
 		return fmt.Errorf("expected exactly %d activities, got %d", len(RequiredActivities), len(contract.Activities))
 	}
 	for i, activity := range contract.Activities {
-		if activity.Name != RequiredActivities[i] || activity.Authority != "READ_ONLY" {
+		if activity.Name != RequiredActivities[i] || activity.Authority != "READ_ONLY" || activity.Family != RequiredIndicatorFamilies[i/4] || activity.Indicator != RequiredIndicatorRoles[i/4] {
 			return fmt.Errorf("activity %d must be %s with READ_ONLY authority", i+1, RequiredActivities[i])
 		}
 		for j := 0; j < i; j++ {
@@ -141,35 +238,21 @@ func ValidateContract(contract Contract) error {
 			}
 		}
 	}
-	want := []struct {
-		id       string
-		decision Decision
-		unknown  string
-	}{
-		{"draft-assets-publish-immutable", Closed, ""},
-		{"deterministic-replay", Closed, ""},
-		{"all-asset-digests-match", Closed, ""},
-		{"exact-annotated-tag-target", Closed, ""},
-		{"missing-operator-immutable-policy-receipt", Unknown, "DIRECT_MISSING"},
-		{"stale-source-run", Unknown, "STALE"},
-		{"missing-git-identity", Unknown, "DIRECT_MISSING"},
-		{"tag-collision", Refuted, ""},
-		{"publish-before-assets", Refuted, ""},
-		{"published-immutable-false", Refuted, ""},
-		{"checksum-path-mismatch", Refuted, ""},
-		{"user-token-secret-or-admin-endpoint-in-actions", Refuted, ""},
-		{"resume-existing-exact-draft-by-list-id", Closed, ""},
-		{"existing-draft-target-or-assets-mismatch", Refuted, ""},
-		{"upload-assets-via-release-upload-url", Closed, ""},
-		{"upload-assets-via-api-endpoint", Refuted, ""},
-		{"reconcile-symbolic-target-with-peeled-tag-target", Closed, ""},
-		{"treat-symbolic-target-commitish-as-exact-commit", Refuted, ""},
-		{"continue-with-create-response-draft-id", Closed, ""},
-		{"require-immediate-draft-list-visibility-after-create", Refuted, ""},
+	if err := ValidateReleaseDeclaration(contract); err != nil {
+		return err
+	}
+	if !sameStates(contract.States, RequiredStates) || !sameTransitions(contract.Transitions, RequiredTransitions) || contract.Terminal != "FIXED_POINT" {
+		return errors.New("contract state machine must be PRECHECK -> TAGGED -> DRAFT_CREATED -> ASSETS_UPLOADED -> ASSETS_AUDITED -> PUBLISHED_IMMUTABLE with explicit FIXED_POINT")
+	}
+	if err := validateIndicators(contract.Indicators, contract.Activities); err != nil {
+		return err
+	}
+	if err := validateBurnedVersions(contract.BurnedVersions, contract.Version.Version); err != nil {
+		return err
 	}
 	for i, scenario := range contract.Scenarios {
-		wantScenario := want[i]
-		if scenario.Ordinal != i+1 || scenario.ID != wantScenario.id || scenario.Expected != wantScenario.decision || scenario.UnknownClass != wantScenario.unknown {
+		family, indicator := scenarioFamilies(i)
+		if scenario.Ordinal != i+1 || scenario.ID != requiredScenarioIDs[i] || scenario.Expected != requiredScenarioDecisions[i] || scenario.UnknownClass != requiredScenarioUnknownClasses[i] || scenario.Family != family || scenario.Indicator != indicator || scenario.Resolution != "FIXED_POINT" {
 			return fmt.Errorf("scenario %d does not match the fixed denominator", i+1)
 		}
 	}

@@ -44,6 +44,14 @@ jobs:
           echo "EVIDENCE_ROOT=$EVIDENCE_ROOT" >> "$GITHUB_ENV"
           mkdir -p "$EVIDENCE_ROOT/metrics" "$EVIDENCE_ROOT/generated" "$EVIDENCE_ROOT/integration"
 
+      - name: Assert PR release mutation authority is zero
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          grep -Eq '^  contents: read$' .github/workflows/ci.yml
+          ! grep -En 'git[[:space:]]+push|gh[[:space:]]+api[[:space:]]+--method[[:space:]]+(POST|PATCH|PUT|DELETE)|immutable[-]releases|release[_]delete|tag[_]delete|asset[_]delete' .github/workflows/ci.yml
+
       - name: Run semantic audit
         run: ./scripts/semantic-audit.sh "$GITHUB_WORKSPACE"
 
