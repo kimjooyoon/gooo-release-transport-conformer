@@ -50,7 +50,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           grep -Eq '^  contents: read$' .github/workflows/ci.yml
-          ! grep -En 'git push|gh api --method (POST|PATCH|PUT|DELETE)|immutable-releases|release_delete|tag_delete|asset_delete' .github/workflows/ci.yml
+          ! grep -En 'git[[:space:]]+push|gh[[:space:]]+api[[:space:]]+--method[[:space:]]+(POST|PATCH|PUT|DELETE)|immutable[-]releases|release[_]delete|tag[_]delete|asset[_]delete' .github/workflows/ci.yml
 
       - name: Run semantic audit
         run: ./scripts/semantic-audit.sh "$GITHUB_WORKSPACE"
