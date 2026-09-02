@@ -29,9 +29,9 @@ jobs:
       WORKFLOW_SHA: ${{ github.sha }}
       MERGED_PR_NUMBER: ${{ inputs.merged_pr_number }}
       OPERATOR_POLICY_RECEIPT_DIGEST: ${{ inputs.operator_policy_receipt_digest }}
-      RELEASE_VERSION: 0.1.6
-      RELEASE_TAG: v0.1.6
-      NEXT_VERSION: 0.1.7
+      RELEASE_VERSION: 0.1.7
+      RELEASE_TAG: v0.1.7
+      NEXT_VERSION: 0.1.8
       GH_TOKEN: ${{ github.token }}
       ATTEMPT_ID: gooo-${{ github.run_id }}-${{ github.run_attempt }}
       RELEASE_STATE: PRECHECK
@@ -71,8 +71,8 @@ jobs:
           test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/previous-release-detail.json" | awk '{print $1}')" = "sha256:317536372b80224bdafc85e1f29decc34a61314ae91e978fd381dd69c9978a19"
           test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/previous-tag-ref.json" | awk '{print $1}')" = "sha256:29458c096556f87f95606ae649600efa570c490710c7876751c954b56473729e"
           test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/merged-pr.json" | awk '{print $1}')" = "sha256:4113d99d48a2f847295ac40ce84f1bfcac83ddb2f84acbb3bad4fa66e3b18de1"
-          test "sha256:$(sha256sum "$fixture" | awk '{print $1}')" = "sha256:0f954255f62b51229e666a8f10b973c45f7f496088574c4173632da37416ce5a"
-          test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/expected-asset-manifest.json" | awk '{print $1}')" = "sha256:187b314a5a9a059961c649a41d910bebe5053f2315cc8d270807217fb5004fca"
+          test "sha256:$(sha256sum "$fixture" | awk '{print $1}')" = "sha256:4be2b2e2262b07f94d48516589f3d4ca5595d6f6651ee6e237bc419e5a079a8b"
+          test "sha256:$(sha256sum "$GITHUB_WORKSPACE/fixtures/api/v6/expected-asset-manifest.json" | awk '{print $1}')" = "sha256:1550412c4aeb9ef75bcd2b688660ef243aabc9827bbf7f7cbc5b141133de0c8e"
           jq -e '
             .schema == "gooo/release-transport-conformer/fixture-api-conformance/v1" and
             .terminal == "FIXED_POINT" and
@@ -90,7 +90,7 @@ jobs:
           ' "$fixture" >/dev/null
           jq -e '[.responses[] | select(.mutation == true) | .endpoint] | all(.[]; (contains("uploads.github.com") or . == "git/refs" or . == "releases" or . == "releases/{draft_id}"))' "$fixture" >/dev/null
           jq -e 'any(.responses[]; .id == "new-annotated-tag" and .payload.type == "tag" and .payload.target == "exact_commit") and any(.responses[]; .id == "draft-release" and .payload.draft == true and .payload.target_commitish == "exact_commit") and any(.responses[]; .id == "release-asset-upload" and .payload.manifest == "name,size,digest") and any(.responses[]; .id == "publish-draft" and .payload.draft == false)' "$fixture" >/dev/null
-          jq -e '.schema == "gooo/release-transport-conformer/asset-manifest-fixture/v1" and .version == "0.1.6" and (.assets | length) == 3 and (.assets | all(.[]; .name != "" and (.size|type) == "number" and (.digest|startswith("sha256:"))))' "$GITHUB_WORKSPACE/fixtures/api/v6/expected-asset-manifest.json" >/dev/null
+          jq -e '.schema == "gooo/release-transport-conformer/asset-manifest-fixture/v1" and .version == "0.1.7" and (.assets | length) == 3 and (.assets | all(.[]; .name != "" and (.size|type) == "number" and (.digest|startswith("sha256:"))))' "$GITHUB_WORKSPACE/fixtures/api/v6/expected-asset-manifest.json" >/dev/null
           echo 'PREMUTATION_FIXTURE_CONFORMANCE=true' >> "$GITHUB_ENV"
 
       - name: PRECHECK exact lineage policy and unused version
@@ -123,7 +123,7 @@ jobs:
           printf '%s\n' "$previous" > "$ATTEMPT_DIR/previous-release-api-receipt.json"
           printf '%s\n' "$previous_ref" > "$ATTEMPT_DIR/previous-tag-ref-api-receipt.json"
 
-          burned='["0.0.1","0.0.2","0.0.3","0.1.4","0.1.5"]'
+          burned='["0.0.1","0.0.2","0.0.3","0.1.4","0.1.5","0.1.6"]'
           if jq -e --arg version "$RELEASE_VERSION" 'index($version) != null' <<<"$burned" >/dev/null; then
             echo 'requested release version is burned; preserve refusal and advance to the next patch' >&2
             exit 1
@@ -155,7 +155,15 @@ jobs:
           git tag -a "$RELEASE_TAG" "$EXPECTED_SHA" -m "gooo release transport $RELEASE_TAG"
           echo 'MUTATION_STARTED=true' >> "$GITHUB_ENV"
           git push origin "refs/tags/$RELEASE_TAG"
-          tag_ref=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")
+          tag_ref=''
+          for retry in 1 2 3 4 5; do
+            tag_ref=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" 2>/dev/null || true)
+            if [[ -n "$tag_ref" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          test -n "$tag_ref"
           jq -e '.object.type == "tag" and (.object.sha|type) == "string"' <<<"$tag_ref" >/dev/null
           TAG_REF_ID=$(jq -r '.node_id // .object.sha' <<<"$tag_ref")
           TAG_OBJECT_ID=$(jq -r '.object.sha' <<<"$tag_ref")
