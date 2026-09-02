@@ -162,7 +162,7 @@ func ValidateReleaseDeclaration(contract Contract) error {
 	previousAssetNames := map[string]bool{}
 	for _, asset := range contract.PreviousRelease.Assets {
 		if asset.ID == "" || asset.Name == "" || asset.Size == "" || !isSHA256Digest(asset.Digest) || previousAssetNames[asset.Name] {
-			return errors.New("previous immutable release assets must retain exact IDs, names, sizes, and digests")
+			return fmt.Errorf("previous immutable release asset is incomplete: id=%q name=%q size=%q digest=%q duplicate_name=%t", asset.ID, asset.Name, asset.Size, asset.Digest, previousAssetNames[asset.Name])
 		}
 		previousAssetNames[asset.Name] = true
 	}
