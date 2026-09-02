@@ -3,10 +3,11 @@ package transport
 import "encoding/json"
 
 const (
-	ContractSchema = "gooo/release-transport-conformer/transport-contract/v5"
-	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v5"
-	EventsSchema   = "gooo/release-transport-conformer/transport-events/v5"
-	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v5"
+	ContractSchema = "gooo/release-transport-conformer/transport-contract/v6"
+	ManifestSchema = "gooo/release-transport-conformer/transport-manifest/v6"
+	EventsSchema   = "gooo/release-transport-conformer/transport-events/v6"
+	ReceiptSchema  = "gooo/release-transport-conformer/conformance-receipt/v6"
+	SemanticIRSchema = "gooo/release-transport-conformer/semantic-ir/v6"
 	Toolchain      = "go1.27.0"
 )
 
@@ -24,21 +25,139 @@ var RequiredActivities = []string{
 	"DeclareReleaseTransportProtocol",
 	"BindOperatorPolicyReceipt",
 	"BindSourceRunArtifact",
-	"GenerateDraftFirstWorkflow",
-	"UseCreatedDraftID",
-	"ReconcileExistingDraft",
-	"ResolveSymbolicReleaseTarget",
-	"UseReleaseUploadURL",
-	"VerifyAnnotatedTagTarget",
-	"VerifyPublicAssetDigests",
-	"PreserveTransportCounterexample",
-	"EmitTransportReceipt",
+	"BindReleaseLineage",
+	"PreflightMutationPayload",
+	"AdvanceReleaseState",
+	"BindExpectedAssetManifest",
+	"PublishDraftAtFixedPoint",
+	"PreserveOperationalRefutation",
+	"BurnFailedVersion",
+	"EnforceRefutedUnknownPrecedence",
+	"EnforceZeroRuntimeAuthority",
+}
+
+var RequiredStates = []ReleaseState{
+	PrecheckState,
+	TaggedState,
+	DraftCreatedState,
+	AssetsUploadedState,
+	AssetsAuditedState,
+	PublishedImmutableState,
+}
+
+var RequiredTransitions = []Transition{
+	{From: PrecheckState, To: TaggedState},
+	{From: TaggedState, To: DraftCreatedState},
+	{From: DraftCreatedState, To: AssetsUploadedState},
+	{From: AssetsUploadedState, To: AssetsAuditedState},
+	{From: AssetsAuditedState, To: PublishedImmutableState},
+}
+
+var RequiredIndicatorFamilies = []string{"FOUNDATION", "COHERENCE", "REGRESSION"}
+var RequiredIndicatorRoles = []string{"DRIVER", "OUTCOME", "GUARDRAIL"}
+
+type ReleaseState string
+
+const (
+	PrecheckState            ReleaseState = "PRECHECK"
+	TaggedState              ReleaseState = "TAGGED"
+	DraftCreatedState        ReleaseState = "DRAFT_CREATED"
+	AssetsUploadedState      ReleaseState = "ASSETS_UPLOADED"
+	AssetsAuditedState       ReleaseState = "ASSETS_AUDITED"
+	PublishedImmutableState  ReleaseState = "PUBLISHED_IMMUTABLE"
+)
+
+type Transition struct {
+	From ReleaseState `json:"from"`
+	To   ReleaseState `json:"to"`
+}
+
+type VersionDeclaration struct {
+	Version     string `json:"version"`
+	Tag         string `json:"tag"`
+	Stream      string `json:"stream"`
+	PatchOnly   bool   `json:"patch_only"`
+	NextVersion string `json:"next_version"`
+}
+
+type ImmutableReleaseIdentity struct {
+	Repository       string `json:"repository"`
+	Version          string `json:"version"`
+	Tag              string `json:"tag"`
+	ReleaseID        string `json:"release_id"`
+	TagObjectSHA     string `json:"tag_object_sha"`
+	TargetCommitSHA  string `json:"target_commit_sha"`
+	Immutable        bool   `json:"immutable"`
+	Assets           []ExpectedAsset `json:"assets"`
+}
+
+type MergedPRLineage struct {
+	Repository       string `json:"repository"`
+	Number           string `json:"number"`
+	BaseBranch       string `json:"base_branch"`
+	HeadSHA          string `json:"head_sha"`
+	MergeCommitSHA   string `json:"merge_commit_sha"`
+	Merged           bool   `json:"merged"`
+}
+
+type ExactTargetCommit struct {
+	Value  string `json:"value"`
+	Source string `json:"source"`
+	Exact  bool   `json:"exact"`
+}
+
+type AnnotatedTagDeclaration struct {
+	Tag            string `json:"tag"`
+	ObjectSHA      string `json:"object_sha"`
+	TargetCommitSHA string `json:"target_commit_sha"`
+	Annotated      bool   `json:"annotated"`
+}
+
+type DraftReleaseDeclaration struct {
+	ID             string `json:"id"`
+	Tag            string `json:"tag"`
+	TargetCommitish string `json:"target_commitish"`
+	Draft          bool   `json:"draft"`
+}
+
+type ExpectedAsset struct {
+	ID     string `json:"id,omitempty"`
+	Name   string `json:"name"`
+	Size   string `json:"size"`
+	Digest string `json:"digest"`
+}
+
+type APIReceipt struct {
+	ID             string `json:"id"`
+	Method         string `json:"method"`
+	Endpoint       string `json:"endpoint"`
+	Status         int    `json:"status"`
+	ResponseDigest string `json:"response_digest"`
+	ResourceID     string `json:"resource_id"`
+	Fixture        string `json:"fixture"`
+}
+
+type BurnedVersion struct {
+	Version      string `json:"version"`
+	AttemptID    string `json:"attempt_id"`
+	Reason       string `json:"reason"`
+	ReceiptDigest string `json:"receipt_digest"`
+}
+
+type IndicatorSpec struct {
+	Ordinal  int    `json:"ordinal"`
+	ID       string `json:"id"`
+	Family   string `json:"family"`
+	Role     string `json:"role"`
+	Activity string `json:"activity"`
 }
 
 type Activity struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
 	Proof     string `json:"proof"`
+	Family    string `json:"family"`
+	Indicator string `json:"indicator"`
 	Artifact  string `json:"artifact"`
 	Authority string `json:"authority"`
 }
@@ -48,6 +167,9 @@ type ScenarioSpec struct {
 	ID           string   `json:"id"`
 	Expected     Decision `json:"expected_decision"`
 	UnknownClass string   `json:"unknown_class,omitempty"`
+	Family       string   `json:"family"`
+	Indicator    string   `json:"indicator"`
+	Resolution   string   `json:"resolution"`
 }
 
 type Contract struct {
@@ -57,8 +179,48 @@ type Contract struct {
 	Precedence    []Decision     `json:"precedence"`
 	UnknownFields []string       `json:"unknown_fields"`
 	Denominator   int            `json:"denominator"`
+	PreviousDenominator int      `json:"previous_denominator"`
+	AppendOnly    bool           `json:"append_only"`
 	Activities    []Activity     `json:"activities"`
 	Scenarios     []ScenarioSpec `json:"scenarios"`
+	Version       VersionDeclaration       `json:"version_declaration"`
+	PreviousRelease ImmutableReleaseIdentity `json:"previous_release"`
+	MergedPR      MergedPRLineage          `json:"merged_pr_lineage"`
+	ExactTarget   ExactTargetCommit        `json:"exact_target_commit"`
+	AnnotatedTag  AnnotatedTagDeclaration  `json:"annotated_tag"`
+	DraftRelease  DraftReleaseDeclaration  `json:"draft_release"`
+	ExpectedAssets []ExpectedAsset          `json:"expected_asset_manifest"`
+	APIReceipts   []APIReceipt              `json:"observed_api_receipts"`
+	BurnedVersions []BurnedVersion          `json:"burned_versions"`
+	States        []ReleaseState            `json:"states"`
+	Transitions   []Transition              `json:"transitions"`
+	Terminal      string                    `json:"terminal"`
+	Indicators    []IndicatorSpec            `json:"indicators"`
+}
+
+type SemanticIR struct {
+	Schema          string                    `json:"schema"`
+	ContractID      string                    `json:"contract_id"`
+	ContractDigest  string                    `json:"contract_digest"`
+	SourceDigest    string                    `json:"source_digest"`
+	PreviousDenominator int                   `json:"previous_denominator"`
+	AppendOnly      bool                      `json:"append_only"`
+	Version         VersionDeclaration        `json:"version"`
+	PreviousRelease ImmutableReleaseIdentity  `json:"previous_release"`
+	MergedPR        MergedPRLineage           `json:"merged_pr_lineage"`
+	ExactTarget     ExactTargetCommit         `json:"exact_target_commit"`
+	AnnotatedTag    AnnotatedTagDeclaration   `json:"annotated_tag"`
+	DraftRelease    DraftReleaseDeclaration   `json:"draft_release"`
+	ExpectedAssets  []ExpectedAsset            `json:"expected_asset_manifest"`
+	APIReceipts     []APIReceipt               `json:"observed_api_receipts"`
+	BurnedVersions  []BurnedVersion            `json:"burned_versions"`
+	States          []ReleaseState              `json:"states"`
+	Transitions     []Transition                `json:"transitions"`
+	Terminal        string                      `json:"terminal"`
+	Activities      []Activity                  `json:"activities"`
+	Indicators      []IndicatorSpec             `json:"indicators"`
+	Scenarios       []ScenarioSpec              `json:"scenarios"`
+	Authority       Authority                    `json:"authority"`
 }
 
 type OperatorPolicyReceipt struct {
@@ -128,6 +290,24 @@ type TransportObservation struct {
 	ChecksumPathMismatch     bool                   `json:"checksum_path_mismatch"`
 	ActionHasUserTokenSecret bool                   `json:"action_has_user_token_secret"`
 	ActionHasAdminEndpoint   bool                   `json:"action_has_admin_endpoint"`
+	StateHistory             []ReleaseState         `json:"state_history"`
+	StateMachineForwardOnly  bool                   `json:"state_machine_forward_only"`
+	PreMutationFixtureConformance bool              `json:"pre_mutation_fixture_conformance"`
+	MutationStarted          bool                   `json:"mutation_started"`
+	FailurePreserved         bool                   `json:"failure_preserved"`
+	BurnedVersion            bool                   `json:"burned_version"`
+	CreatedPublicObjectIDsExact bool                `json:"created_public_object_ids_exact"`
+	DirectMainReleaseTarget  bool                   `json:"direct_main_release_target"`
+	CompareResultAmbiguous   bool                   `json:"compare_result_ambiguous"`
+	WrongTargetCommitish     bool                   `json:"wrong_target_commitish"`
+	TagReleaseOrderingError  bool                   `json:"tag_release_ordering_error"`
+	ImmutableSettingEvidenceMissing bool            `json:"immutable_setting_evidence_missing"`
+	MalformedImmutableSettingEvidence bool           `json:"malformed_immutable_setting_evidence"`
+	AssetManifestMismatch    bool                   `json:"asset_manifest_mismatch"`
+	DuplicateOrBurnedVersionReuse bool               `json:"duplicate_or_burned_version_reuse"`
+	MutablePublishedRelease  bool                   `json:"mutable_published_release"`
+	FixedPoint               bool                   `json:"fixed_point"`
+	OperatorAuthoritySeparate bool                  `json:"operator_authority_separate"`
 }
 
 type UnknownEvidence struct {
@@ -154,8 +334,34 @@ type ScenarioResult struct {
 	Expected   Decision         `json:"expected_decision"`
 	Decision   Decision         `json:"decision"`
 	Reason     string           `json:"reason"`
+	Family     string           `json:"family"`
+	Indicator  string           `json:"indicator"`
+	Resolution string           `json:"resolution"`
+	Numerator  int              `json:"numerator"`
+	Denominator int             `json:"denominator"`
 	Unknown    *UnknownEvidence `json:"unknown,omitempty"`
 	Refutation *Refutation      `json:"refutation,omitempty"`
+}
+
+type CaseVector struct {
+	Ordinal     int      `json:"ordinal"`
+	ID          string   `json:"id"`
+	Family      string   `json:"family"`
+	Indicator   string   `json:"indicator"`
+	Decision    Decision `json:"decision"`
+	Numerator   int      `json:"numerator"`
+	Denominator int      `json:"denominator"`
+}
+
+type IndicatorVector struct {
+	Ordinal     int      `json:"ordinal"`
+	ID          string   `json:"id"`
+	Family      string   `json:"family"`
+	Role        string   `json:"role"`
+	Activity    string   `json:"activity"`
+	Decision    Decision `json:"decision"`
+	Numerator   int      `json:"numerator"`
+	Denominator int      `json:"denominator"`
 }
 
 type Inventory struct {
@@ -201,6 +407,15 @@ type Authority struct {
 	LocalGoTests             int  `json:"local_go_tests"`
 	CallerOwnedOutput        bool `json:"caller_owned_output"`
 	SourceRepositoryReadOnly bool `json:"source_repository_read_only"`
+	CrossProjectRequiredGates int `json:"cross_project_required_gates"`
+	GithubToken              string `json:"github_token"`
+	OperatorRelease          OperatorReleaseAuthority `json:"operator_release"`
+}
+
+type OperatorReleaseAuthority struct {
+	Workflow       string   `json:"workflow"`
+	AllowedMutations []string `json:"allowed_mutations"`
+	SeparatedFromRuntime bool `json:"separated_from_runtime"`
 }
 
 type OperationalAudit struct {
@@ -215,6 +430,10 @@ type OperationalAudit struct {
 	LocalTestInvocations              int      `json:"local_test_invocations"`
 	LocalTestExecutions               int      `json:"local_test_executions"`
 	CIAuthority                       string   `json:"ci_authority"`
+	MutationStarted                   bool     `json:"mutation_started"`
+	CreatedPublicObjectIDs            []string `json:"created_public_object_ids"`
+	IncidentDisposition               string   `json:"incident_disposition"`
+	BurnedVersion                     bool     `json:"burned_version"`
 }
 
 type Manifest struct {
@@ -229,15 +448,29 @@ type Manifest struct {
 	OutputFiles                 []string  `json:"output_files"`
 	Activities                  []string  `json:"activities"`
 	Authority                   Authority `json:"authority"`
+	SemanticIRSchema             string    `json:"semantic_ir_schema"`
+	ReleaseVersion               string    `json:"release_version"`
+	PreviousReleaseID            string    `json:"previous_release_id"`
+	PreviousDenominator          int       `json:"previous_denominator"`
+	AppendOnly                   bool      `json:"append_only"`
+	StateMachine                 []ReleaseState `json:"state_machine"`
+	ExpectedAssetManifest        []ExpectedAsset `json:"expected_asset_manifest"`
 }
 
 type Event struct {
-	Ordinal  int      `json:"ordinal"`
-	Activity string   `json:"activity"`
-	Event    string   `json:"event"`
-	Decision Decision `json:"decision"`
-	Proof    string   `json:"proof"`
-	Evidence string   `json:"evidence"`
+	Ordinal             int            `json:"ordinal"`
+	Activity            string         `json:"activity"`
+	Event               string         `json:"event"`
+	Decision            Decision       `json:"decision"`
+	Proof               string         `json:"proof"`
+	Evidence            string         `json:"evidence"`
+	Family              string         `json:"family"`
+	Indicator           string         `json:"indicator"`
+	StateHistory        []ReleaseState `json:"state_history"`
+	ObservedAPIReceipts []string       `json:"observed_api_receipts"`
+	MutationStarted     bool           `json:"mutation_started"`
+	CreatedObjectIDs    []string       `json:"created_object_ids"`
+	IncidentDisposition string         `json:"incident_disposition"`
 }
 
 type Receipt struct {
@@ -247,11 +480,17 @@ type Receipt struct {
 	ContractDigest        string            `json:"contract_digest"`
 	SourceDigest          string            `json:"source_digest"`
 	Decision              Decision          `json:"decision"`
+	Terminal              string            `json:"terminal"`
+	State                 ReleaseState      `json:"state"`
 	ConformanceClosed     bool              `json:"conformance_closed"`
 	Precedence            []Decision        `json:"precedence"`
 	Denominator           int               `json:"denominator"`
 	Summary               map[string]int    `json:"summary"`
 	Scenarios             []ScenarioResult  `json:"scenarios"`
+	CaseDenominator       int               `json:"case_denominator"`
+	CaseVectors           []CaseVector      `json:"case_vectors"`
+	IndicatorDenominator  int               `json:"indicator_denominator"`
+	IndicatorVectors      []IndicatorVector `json:"indicator_vectors"`
 	Activities            []Activity        `json:"activities"`
 	ActivityBindingCounts map[string]int    `json:"activity_binding_counts"`
 	Authority             Authority         `json:"authority"`
@@ -262,6 +501,31 @@ type Receipt struct {
 	Measurements          StageMeasurements `json:"measurements"`
 	OperationalAudit      OperationalAudit  `json:"operational_audit"`
 	ScopeNote             string            `json:"scope_note"`
+	SemanticIR             SemanticIR       `json:"semantic_ir"`
+	Attempt                MutationAttempt  `json:"attempt"`
+}
+
+type MutationAttempt struct {
+	Schema                    string                 `json:"schema"`
+	AttemptID                 string                 `json:"attempt_id"`
+	Version                   string                 `json:"version"`
+	Tag                       string                 `json:"tag"`
+	State                     ReleaseState           `json:"state"`
+	Decision                  Decision               `json:"decision"`
+	MutationStarted           bool                   `json:"mutation_started"`
+	CreatedPublicObjectIDs    CreatedPublicObjectIDs `json:"created_public_object_ids"`
+	PreserveNeverDelete       bool                   `json:"preserve_never_delete"`
+	BurnedVersion             bool                   `json:"burned_version"`
+	NextVersion               string                 `json:"next_version"`
+	IncidentDisposition       string                 `json:"incident_disposition"`
+}
+
+type CreatedPublicObjectIDs struct {
+	TagRefID       string   `json:"tag_ref_id,omitempty"`
+	TagObjectID    string   `json:"tag_object_id,omitempty"`
+	DraftReleaseID string   `json:"draft_release_id,omitempty"`
+	ReleaseID      string   `json:"release_id,omitempty"`
+	AssetIDs       []string `json:"asset_ids"`
 }
 
 func JSON(value any) ([]byte, error) {

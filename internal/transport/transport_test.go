@@ -21,13 +21,40 @@ func TestFixedContractHasExactActivitiesAndScenarios(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(contract.Activities) != 12 || len(contract.Scenarios) != 20 || contract.Denominator != 20 {
+	if len(contract.Activities) != 12 || len(contract.Scenarios) != 32 || contract.Denominator != 32 {
 		t.Fatalf("unexpected fixed contract shape: activities=%d scenarios=%d denominator=%d", len(contract.Activities), len(contract.Scenarios), contract.Denominator)
 	}
 	for i, activity := range contract.Activities {
 		if activity.Name != RequiredActivities[i] || activity.Authority != "READ_ONLY" {
 			t.Fatalf("activity %d = %+v", i+1, activity)
 		}
+	}
+}
+
+func TestSemanticIROwnsReleaseTransportBoundary(t *testing.T) {
+	root := repositoryRoot(t)
+	contract, raw, err := LoadContract(filepath.Join(root, ".gooo", "release-transport.gooo"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ir, err := BuildSemanticIR(contract, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateSemanticIR(ir); err != nil {
+		t.Fatal(err)
+	}
+	if ir.Version.Version != "0.1.4" || ir.PreviousRelease.ReleaseID != "380375220" || ir.Terminal != "FIXED_POINT" {
+		t.Fatalf("semantic IR lost release identity: %+v", ir)
+	}
+	if !sameStates(ir.States, RequiredStates) || !sameTransitions(ir.Transitions, RequiredTransitions) {
+		t.Fatal("semantic IR state machine is not append-only and forward-only")
+	}
+}
+
+func TestDecisionPrecedenceRefutesUnknownAndClosed(t *testing.T) {
+	if ResolveDecision(Closed, Unknown, Refuted) != Refuted || ResolveDecision(Closed, Unknown) != Unknown || ResolveDecision(Closed) != Closed {
+		t.Fatal("decision precedence is not REFUTED > UNKNOWN > CLOSED")
 	}
 }
 
@@ -41,7 +68,7 @@ func TestFixedScenariosEvaluateToDeclaredStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if counts["CLOSED"] != 8 || counts["UNKNOWN"] != 3 || counts["REFUTED"] != 9 {
+	if counts["CLOSED"] != 12 || counts["UNKNOWN"] != 4 || counts["REFUTED"] != 16 {
 		t.Fatalf("unexpected decision counts: %#v", counts)
 	}
 	for _, result := range results {

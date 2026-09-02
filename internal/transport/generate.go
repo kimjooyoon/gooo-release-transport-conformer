@@ -12,6 +12,7 @@ import (
 
 var OutputFiles = []string{
 	"release-workflow.yml",
+	"semantic-ir.json",
 	"transport-manifest.json",
 	"transport-events.ndjson",
 	"conformance-receipt.json",
@@ -63,9 +64,24 @@ func Generate(options GenerateOptions) (Receipt, error) {
 		}
 		operatorDigest = receipt.Digest
 	}
+	ir, err := BuildSemanticIR(contract, sourceRaw)
+	if err != nil {
+		return Receipt{}, err
+	}
+	ir, err = ProjectSemanticIR(ir)
+	if err != nil {
+		return Receipt{}, err
+	}
 	workflow := ReleaseWorkflow()
 	workflowDigest := DigestBytes([]byte(workflow))
-	results, counts, err := EvaluateFixed(contract, workflow)
+	results, counts, caseVectors, indicatorVectors, err := EvaluateSemanticIR(ir, workflow)
+	if err != nil {
+		return Receipt{}, err
+	}
+	if err := ValidateVectors(caseVectors, indicatorVectors, contract.Denominator); err != nil {
+		return Receipt{}, err
+	}
+	irRaw, err := JSON(ir)
 	if err != nil {
 		return Receipt{}, err
 	}
@@ -73,10 +89,10 @@ func Generate(options GenerateOptions) (Receipt, error) {
 	if err != nil {
 		return Receipt{}, err
 	}
-	authority := Authority{CallerOwnedOutput: true, SourceRepositoryReadOnly: true}
+	authority := ir.Authority
 	manifest := Manifest{
 		Schema:                      ManifestSchema,
-		Protocol:                    "gooo-release-transport-conformer/v5",
+		Protocol:                    "gooo-release-transport-conformer/v6",
 		ContractID:                  contract.ContractID,
 		ContractDigest:              DigestBytes(sourceRaw),
 		SourcePath:                  filepath.ToSlash(sourcePath),
@@ -86,37 +102,51 @@ func Generate(options GenerateOptions) (Receipt, error) {
 		OutputFiles:                 append([]string(nil), OutputFiles...),
 		Activities:                  append([]string(nil), RequiredActivities...),
 		Authority:                   authority,
+		SemanticIRSchema:             SemanticIRSchema,
+		ReleaseVersion:               ir.Version.Version,
+		PreviousReleaseID:            ir.PreviousRelease.ReleaseID,
+		PreviousDenominator:          ir.PreviousDenominator,
+		AppendOnly:                   ir.AppendOnly,
+		StateMachine:                 append([]ReleaseState(nil), ir.States...),
+		ExpectedAssetManifest:        append([]ExpectedAsset(nil), ir.ExpectedAssets...),
 	}
 	manifestRaw, err := JSON(manifest)
 	if err != nil {
 		return Receipt{}, err
 	}
-	events := renderEvents(contract.Activities, operatorDigest, DigestBytes(sourceRaw), workflowDigest)
+	events := renderEvents(contract.Activities, operatorDigest, DigestBytes(sourceRaw), workflowDigest, ir.States, ir.APIReceipts)
 	eventsRaw := []byte(events)
 	artifactDigests := map[string]string{
 		"release-workflow.yml":    DigestBytes([]byte(workflow)),
+		"semantic-ir.json":        DigestBytes(irRaw),
 		"transport-manifest.json": DigestBytes(manifestRaw),
 		"transport-events.ndjson": DigestBytes(eventsRaw),
 	}
 	receipt := Receipt{
 		Schema:                ReceiptSchema,
-		Protocol:              "gooo-release-transport-conformer/v5",
+		Protocol:              "gooo-release-transport-conformer/v6",
 		ContractID:            contract.ContractID,
 		ContractDigest:        DigestBytes(sourceRaw),
 		SourceDigest:          DigestBytes(sourceRaw),
 		Decision:              Closed,
+		Terminal:              ir.Terminal,
+		State:                 PublishedImmutableState,
 		ConformanceClosed:     true,
 		Precedence:            append([]Decision(nil), Precedence...),
 		Denominator:           contract.Denominator,
 		Summary:               counts,
 		Scenarios:             results,
+		CaseDenominator:       contract.Denominator,
+		CaseVectors:           caseVectors,
+		IndicatorDenominator:  len(indicatorVectors),
+		IndicatorVectors:      indicatorVectors,
 		Activities:            append([]Activity(nil), contract.Activities...),
 		ActivityBindingCounts: activityCounts(contract.Activities),
 		Authority:             authority,
 		OutputFiles:           append([]string(nil), OutputFiles...),
 		ArtifactDigests:       artifactDigests,
 		Inventory:             inventory,
-		Tests:                 TestCounts{Total: 20, Selected: 20, Executed: 20, Reused: 0, Failed: 0, Unknown: 0},
+		Tests:                 TestCounts{Total: 32, Selected: 32, Executed: 32, Reused: 0, Failed: 0, Unknown: 0},
 		Measurements:          StageMeasurements{},
 		OperationalAudit: OperationalAudit{
 			State:                             Refuted,
@@ -130,8 +160,27 @@ func Generate(options GenerateOptions) (Receipt, error) {
 			LocalTestInvocations:              2,
 			LocalTestExecutions:               1,
 			CIAuthority:                       "GITHUB_ACTIONS_ONLY_FROM_PR_ONWARD",
+			MutationStarted:                   false,
+			CreatedPublicObjectIDs:            []string{},
+			IncidentDisposition:               "NONE_GENERATOR_READ_ONLY",
+			BurnedVersion:                     false,
 		},
-		ScopeNote: "CLOSED means the twenty declared release-transport contracts were classified as expected; it is not a global safety claim.",
+		ScopeNote: "CLOSED means the thirty-two declared release-transport cases were classified as expected at the explicit FIXED_POINT; it is not a global safety claim.",
+		SemanticIR:           ir,
+		Attempt: MutationAttempt{
+			Schema:                  "gooo/release-transport-conformer/mutation-attempt/v1",
+			AttemptID:               "GENERATOR_READ_ONLY",
+			Version:                 ir.Version.Version,
+			Tag:                     ir.Version.Tag,
+			State:                   PrecheckState,
+			Decision:                Closed,
+			MutationStarted:         false,
+			CreatedPublicObjectIDs:  CreatedPublicObjectIDs{AssetIDs: []string{}},
+			PreserveNeverDelete:     true,
+			BurnedVersion:           false,
+			NextVersion:             ir.Version.NextVersion,
+			IncidentDisposition:     "NONE_GENERATOR_READ_ONLY",
+		},
 	}
 	report := RenderHumanReport(receipt)
 	reportRaw := []byte(report)
@@ -141,6 +190,9 @@ func Generate(options GenerateOptions) (Receipt, error) {
 		return Receipt{}, err
 	}
 	if err := writeOutput(options.Output, "release-workflow.yml", []byte(workflow)); err != nil {
+		return Receipt{}, err
+	}
+	if err := writeOutput(options.Output, "semantic-ir.json", irRaw); err != nil {
 		return Receipt{}, err
 	}
 	if err := writeOutput(options.Output, "transport-manifest.json", manifestRaw); err != nil {
@@ -169,7 +221,7 @@ func LoadOperatorPolicyReceipt(path string) (OperatorPolicyReceipt, error) {
 	if err := decoder.Decode(&receipt); err != nil {
 		return OperatorPolicyReceipt{}, fmt.Errorf("decode operator policy receipt: %w", err)
 	}
-	if !receipt.Enabled || !receipt.Immutable || !strings.HasPrefix(receipt.Digest, "sha256:") {
+	if receipt.Schema != "gooo-release-transport-conformer/operator-immutable-policy-receipt/v1" || receipt.Repository == "" || !receipt.Enabled || !receipt.Immutable || !isSHA256Digest(receipt.Digest) {
 		return OperatorPolicyReceipt{}, errors.New("operator policy receipt must be enabled, immutable, and digest-bound")
 	}
 	return receipt, nil
@@ -187,42 +239,46 @@ func activityCounts(activities []Activity) map[string]int {
 	return counts
 }
 
-func renderEvents(activities []Activity, operatorDigest, sourceDigest, workflowDigest string) string {
+func renderEvents(activities []Activity, operatorDigest, sourceDigest, workflowDigest string, states []ReleaseState, receipts []APIReceipt) string {
 	events := make([]Event, 0, len(activities))
 	evidence := []string{
-		"fixed-transport-denominator",
+		"semantic-ir-and-fixed-denominator",
 		operatorDigest,
 		sourceDigest,
+		"previous-immutable-release-and-merged-pr-lineage",
+		"fixture-api-responses-before-mutation",
+		"forward-only-release-state-machine",
+		"expected-asset-manifest-name-size-digest",
 		workflowDigest,
-		"create-response-draft-id",
-		"draft-list-id-and-source-target",
-		"peeled-annotated-tag-target",
-		"release-upload-url",
-		"public-annotated-tag-target",
-		"public-asset-digests",
-		"fixed-counterexamples",
-		"conformance-receipt",
+		"operational-refutation-and-created-public-object-ids",
+		"append-only-burned-version-ledger",
+		"refuted-unknown-closed-precedence",
+		"runtime-authority-zero-operator-authority-separate",
 	}
 	labels := []string{
 		"protocol-declared",
 		"operator-policy-receipt-bound",
 		"source-run-artifact-bound",
-		"draft-first-workflow-generated",
-		"created-draft-id-used",
-		"existing-draft-reconciled",
-		"symbolic-target-resolved-through-peeled-tag",
-		"release-upload-url-bound",
-		"annotated-tag-target-verified",
-		"public-asset-digests-verified",
-		"transport-counterexamples-preserved",
-		"transport-receipt-emitted",
+		"release-lineage-bound",
+		"mutation-payload-preflighted",
+		"state-machine-bound",
+		"asset-manifest-bound",
+		"fixed-point-publication-guarded",
+		"operational-refutation-preserved",
+		"failed-version-burned",
+		"decision-precedence-enforced",
+		"runtime-authority-zero",
 	}
 	for i, activity := range activities {
 		decision := Closed
 		if i == 1 && operatorDigest == "" {
 			decision = Unknown
 		}
-		events = append(events, Event{Ordinal: i + 1, Activity: activity.Name, Event: labels[i], Decision: decision, Proof: activity.Proof, Evidence: evidence[i]})
+		receiptIDs := make([]string, 0, len(receipts))
+		for _, receipt := range receipts {
+			receiptIDs = append(receiptIDs, receipt.ID+"="+receipt.ResponseDigest)
+		}
+		events = append(events, Event{Ordinal: i + 1, Activity: activity.Name, Event: labels[i], Decision: decision, Proof: activity.Proof, Evidence: evidence[i], Family: activity.Family, Indicator: activity.Indicator, StateHistory: append([]ReleaseState(nil), states...), ObservedAPIReceipts: receiptIDs, MutationStarted: false, CreatedObjectIDs: []string{}, IncidentDisposition: "NONE_GENERATOR_READ_ONLY"})
 	}
 	var builder strings.Builder
 	for _, event := range events {
@@ -237,16 +293,16 @@ func RenderHumanReport(receipt Receipt) string {
 	var builder strings.Builder
 	builder.WriteString("# Gooo release transport conformance\n\n")
 	fmt.Fprintf(&builder, "decision: `%s`\n\n", receipt.Decision)
-	builder.WriteString("The receipt closes the eighteen declared release-transport contracts only. It does not claim global repository, platform, or supply-chain safety.\n\n")
-	fmt.Fprintf(&builder, "fixed denominator: %d scenarios\n\n", receipt.Denominator)
-	builder.WriteString("| ordinal | scenario | expected | observed | reason |\n|---:|---|---|---|---|\n")
+	builder.WriteString("The receipt closes the thirty-two declared release-transport cases only. It does not claim global repository, platform, or supply-chain safety.\n\n")
+	fmt.Fprintf(&builder, "fixed case denominator: %d; fixed indicator denominator: %d\n\n", receipt.CaseDenominator, receipt.IndicatorDenominator)
+	builder.WriteString("| ordinal | case | family | indicator | expected | observed | reason |\n|---:|---|---|---|---|---|---|\n")
 	for _, scenario := range receipt.Scenarios {
-		fmt.Fprintf(&builder, "| %d | %s | %s | %s | %s |\n", scenario.Ordinal, scenario.ID, scenario.Expected, scenario.Decision, scenario.Reason)
+		fmt.Fprintf(&builder, "| %d | %s | %s | %s | %s | %s | %s |\n", scenario.Ordinal, scenario.ID, scenario.Family, scenario.Indicator, scenario.Expected, scenario.Decision, scenario.Reason)
 	}
 	builder.WriteString("\nscenario counts: ")
 	fmt.Fprintf(&builder, "CLOSED=%d, UNKNOWN=%d, REFUTED=%d\n\n", receipt.Summary["CLOSED"], receipt.Summary["UNKNOWN"], receipt.Summary["REFUTED"])
-	builder.WriteString("resolution precedence: `REFUTED > UNKNOWN > CLOSED` within each transport observation.\n\n")
-	builder.WriteString("unknown records retain stage, step, reason, unknown_class, next_operation, and blocked_by. Operator policy evidence is accepted only as an external immutable digest input.\n\n")
-	fmt.Fprintf(&builder, "authority: repository_writes=0, commits=0, pushes=0, merges=0, tags=0, releases=0, product_runtime_local_go_tests=0.\nauthoring audit: state=%s, local_test_invocations=%d, local_test_executions=%d; operator_stage_local_test_invocations=%d, operator_stage_local_test_executions=%d.\n", receipt.OperationalAudit.State, receipt.OperationalAudit.LocalTestInvocations, receipt.OperationalAudit.LocalTestExecutions, receipt.OperationalAudit.OperatorStageLocalTestInvocations, receipt.OperationalAudit.OperatorStageLocalTestExecutions)
+	builder.WriteString("resolution precedence: `REFUTED > UNKNOWN > CLOSED`; only explicit `FIXED_POINT` may close the contract.\n\n")
+	builder.WriteString("unknown records retain stage, step, reason, unknown_class, next_operation, and blocked_by. Failed mutation attempts preserve every created public object ID and burn the attempted version; no tag, draft, release, or asset is deleted, edited, or reused.\n\n")
+	fmt.Fprintf(&builder, "authority: repository_writes=0, commits=0, pushes=0, merges=0, tags=0, releases=0, local_go_tests=0, cross_project_required_gates=0; operator_release=%s.\nauthoring audit: state=%s, local_test_invocations=%d, local_test_executions=%d; operator_stage_local_test_invocations=%d, operator_stage_local_test_executions=%d.\n", receipt.Authority.OperatorRelease.Workflow, receipt.OperationalAudit.State, receipt.OperationalAudit.LocalTestInvocations, receipt.OperationalAudit.LocalTestExecutions, receipt.OperationalAudit.OperatorStageLocalTestInvocations, receipt.OperationalAudit.OperatorStageLocalTestExecutions)
 	return builder.String()
 }

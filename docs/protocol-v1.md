@@ -1,35 +1,67 @@
-# Release transport protocol v4
+# Release transport protocol v6
 
-The `.gooo` declaration is the semantic source of truth. Its twelve activities
-are bound exactly once in order: protocol declaration, external operator
-receipt binding, source-run binding, workflow generation, create-response draft
-ID use, existing-draft reconciliation, symbolic release-target resolution through the peeled annotated
-tag target, release upload URL binding, annotated-tag target verification,
-public asset-digest verification, counterexample preservation, and receipt
-emission.
+The `.gooo` file is the semantic authority. The generator parses it into a
+semantic IR, the evaluator classifies the declared cases, and the projector
+emits the machine and human artifacts. JSON fixtures are observations; they
+cannot widen the contract.
 
-The generator has no product-repository write, commit, push, merge, tag, or
-release authority. Those effects exist only in the generated caller workflow
-or in the explicit user-authorized operator/release operations. In particular,
-the ordinary Actions token is not assumed to have administration capability.
+## Contract boundary
 
-The fixed twenty scenarios deliberately include both healthy observations and
-negative evidence. `UNKNOWN` is used for missing or stale evidence and retains
-all six required fields. `REFUTED` is used for observed order, identity,
-immutability, path, or capability contradictions. The conformance receipt
-closes the denominator when these classifications match the `.gooo` contract.
-Draft lookup uses the releases list endpoint because a draft can be hidden by
-the releases-by-tag endpoint; an existing draft is resumed only when its tag,
-source target, and assets match exactly or its assets are empty. A newly created
-draft continues with the ID in the create response; it does not require
-immediate list visibility. A symbolic
-`target_commitish` is never treated as an exact commit; it is reconciled with
-the peeled annotated tag target. Binary upload
-uses only the draft detail `upload_url` after removing its template; the
-api.github.com release-assets endpoint is a refuted transport path. Drafts and
-tags are never deleted, moved, recreated, or force-updated.
+The declaration owns the current patch version, the previous immutable release
+identity, merged PR lineage, exact target commit binding, annotated tag object
+and peeled target, create-response draft identity, expected asset entries
+(name, size, digest), observed API receipt identities, the append-only burned
+version ledger, and the state machine. The v6 denominator is append-only: all
+twenty v5 cases remain and twelve new transport cases are added, for exactly
+thirty-two cases. There are twelve indicator vectors.
 
-Performance evidence is recorded by CI for compile, build, test, conformance,
-and integration as integer `wall_ms` and `peak_rss_kib` pairs. A performance
-improvement is not claimed without an exact matched pair; absent such a pair it
-is `UNKNOWN`.
+The only valid state path is:
+
+`PRECHECK -> TAGGED -> DRAFT_CREATED -> ASSETS_UPLOADED -> ASSETS_AUDITED -> PUBLISHED_IMMUTABLE`
+
+Transitions are forward-only and each state is recorded once. Publication is
+valid only at the explicit `FIXED_POINT` terminal. The evaluator resolves
+`REFUTED > UNKNOWN > CLOSED`; an unknown record always contains the six fields
+`stage`, `step`, `reason`, `unknown_class`, `next_operation`, and `blocked_by`.
+
+## Mutation protocol
+
+The generated operator workflow has a separate authority from the generator
+runtime. Before mutation it conforms the tag payload, draft payload, lineage,
+asset manifest shape, state transitions, and API receipt fixtures. It then
+reads the merged PR API record directly; it does not infer lineage from the
+compare API. The release target must be the exact merged commit, never `main`
+or another symbolic ref. The previous immutable release is checked by release
+ID, tag, annotated tag object, peeled commit, and `immutable=true`.
+
+The workflow creates one annotated tag, creates one draft release before any
+asset, continues with the create-response draft ID, obtains the draft detail
+`upload_url`, uploads binary assets only through the resulting
+`uploads.github.com` endpoint, audits exact asset count/name/size/digest, and
+publishes once. It never deletes, edits, force-updates, retags, or reuses a
+public object.
+
+If any step fails after mutation starts, the always-run caller-owned artifact
+contains an `OPERATIONAL_REFUTED` receipt with the exact `mutation_started`
+boolean and the created tag ref, annotated tag object, draft release, published
+release, and asset IDs observed so far. The attempted version is burned and
+the only next operation is a fresh patch version. Pre-mutation refusals retain
+the refusal receipt without claiming public object creation.
+
+The direct-main target, ambiguous compare result, wrong target commitish,
+tag/release ordering error, asset count/name/size/digest mismatch, duplicate
+or burned version reuse, and mutable published release cases are `REFUTED`.
+Missing immutable-setting evidence is `UNKNOWN` with the six-field causal
+record. A disabled or contradictory setting receipt is `REFUTED`.
+
+## Authority and evidence
+
+The Go runtime has exact zero authority for repository writes, commits, merges,
+pushes, tags, releases, local product tests, and cross-project required gates.
+It writes only the caller-owned output directory. The operator release workflow
+is declared separately and uses the standard `github.token`; PR CI retains
+read-only contents permission and performs zero release mutations.
+
+The generated receipt exposes exact case and indicator vectors, with the
+`FOUNDATION`/`COHERENCE`/`REGRESSION` and `DRIVER`/`OUTCOME`/`GUARDRAIL`
+partitions. It does not emit an aggregate score or percentage.

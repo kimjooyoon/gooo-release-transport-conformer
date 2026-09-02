@@ -13,43 +13,61 @@ func EvaluateFixed(contract Contract, workflow string) ([]ScenarioResult, map[st
 	if err := ValidateContract(contract); err != nil {
 		return nil, nil, err
 	}
-	results := make([]ScenarioResult, 0, len(contract.Scenarios))
+	ir, err := BuildSemanticIR(contract, []byte(contract.ContractID))
+	if err != nil {
+		return nil, nil, err
+	}
+	results, counts, _, _, err := EvaluateSemanticIR(ir, workflow)
+	return results, counts, err
+}
+
+func EvaluateSemanticIR(ir SemanticIR, workflow string) ([]ScenarioResult, map[string]int, []CaseVector, []IndicatorVector, error) {
+	if err := ValidateSemanticIR(ir); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	results := make([]ScenarioResult, 0, len(ir.Scenarios))
 	counts := map[string]int{"CLOSED": 0, "UNKNOWN": 0, "REFUTED": 0}
-	for _, spec := range contract.Scenarios {
+	caseVectors := make([]CaseVector, 0, len(ir.Scenarios))
+	for _, spec := range ir.Scenarios {
 		observation := fixedObservation(spec.ID, workflow)
 		result := EvaluateScenario(spec, observation)
 		if result.Decision != spec.Expected {
-			return nil, nil, fmt.Errorf("scenario %s evaluated as %s, want %s", spec.ID, result.Decision, spec.Expected)
+			return nil, nil, nil, nil, fmt.Errorf("scenario %s evaluated as %s, want %s", spec.ID, result.Decision, spec.Expected)
 		}
 		results = append(results, result)
 		counts[string(result.Decision)]++
+		caseVectors = append(caseVectors, CaseVector{Ordinal: spec.Ordinal, ID: spec.ID, Family: spec.Family, Indicator: spec.Indicator, Decision: result.Decision, Numerator: boolInt(result.Decision == spec.Expected), Denominator: 1})
 	}
-	return results, counts, nil
+	indicatorVectors := ProjectIndicatorVectors(ir.Indicators, results)
+	return results, counts, caseVectors, indicatorVectors, nil
 }
 
 func EvaluateScenario(spec ScenarioSpec, observation TransportObservation) ScenarioResult {
-	result := ScenarioResult{Ordinal: spec.Ordinal, ID: spec.ID, Expected: spec.Expected}
+	result := ScenarioResult{Ordinal: spec.Ordinal, ID: spec.ID, Expected: spec.Expected, Family: spec.Family, Indicator: spec.Indicator, Resolution: spec.Resolution, Numerator: 0, Denominator: 1}
 	closed := func(reason string) ScenarioResult {
 		result.Decision = Closed
 		result.Reason = reason
+		result.Numerator = boolInt(result.Decision == result.Expected)
 		return result
 	}
 	unknown := func(evidence UnknownEvidence) ScenarioResult {
 		result.Decision = Unknown
 		result.Reason = evidence.Reason
 		result.Unknown = &evidence
+		result.Numerator = boolInt(result.Decision == result.Expected)
 		return result
 	}
 	refuted := func(kind, reason string) ScenarioResult {
 		result.Decision = Refuted
 		result.Reason = reason
 		result.Refutation = &Refutation{Kind: kind, Reason: reason}
+		result.Numerator = boolInt(result.Decision == result.Expected)
 		return result
 	}
 
 	switch spec.ID {
 	case "draft-assets-publish-immutable":
-		if workflowOrderValid(observation.Workflow) && observation.DraftCreated && observation.AssetsUploaded && observation.Published && observation.PublishedImmutable {
+		if workflowOrderValid(observation.Workflow) && observation.DraftCreated && observation.AssetsUploaded && observation.Published && observation.PublishedImmutable && observation.FixedPoint {
 			return closed("draft created, every asset uploaded, then published and observed immutable")
 		}
 		return refuted("ORDER_OR_IMMUTABILITY_MISMATCH", "draft-first order, complete upload, or immutable publication was not observed")
@@ -151,6 +169,69 @@ func EvaluateScenario(spec ScenarioSpec, observation TransportObservation) Scena
 			return refuted("IMMEDIATE_DRAFT_LIST_REQUIRED", "workflow required immediate list visibility after draft creation instead of using the create response ID")
 		}
 		return closed("workflow does not require immediate list visibility after draft creation")
+	case "linear-forward-state-machine":
+		if observation.StateMachineForwardOnly && sameStates(observation.StateHistory, RequiredStates) {
+			return closed("release transport advances through each declared state exactly once")
+		}
+		return refuted("NON_FORWARD_STATE_TRANSITION", "release transport skipped, repeated, or reversed a declared state")
+	case "pre-mutation-fixture-conformance":
+		if observation.PreMutationFixtureConformance && !observation.MutationStarted {
+			return closed("payload, tag, lineage, and asset manifest conformed to fixture API responses before mutation")
+		}
+		return refuted("MUTATION_BEFORE_FIXTURE_CONFORMANCE", "a public mutation was permitted before fixture API conformance")
+	case "failed-attempt-preserves-objects-and-burns-version":
+		if observation.MutationStarted && observation.FailurePreserved && observation.BurnedVersion && observation.CreatedPublicObjectIDsExact {
+			return closed("failed attempts retain all created public IDs and burn the attempted version")
+		}
+		return refuted("FAILED_ATTEMPT_NOT_PRESERVED", "a mutation-started failure did not preserve exact public object IDs and burn the version")
+	case "direct-main-release-target":
+		if observation.DirectMainReleaseTarget {
+			return refuted("DIRECT_MAIN_RELEASE_TARGET", "release target was the mutable main ref instead of the exact merged commit")
+		}
+		return closed("release target is not the mutable main ref")
+	case "ambiguous-compare-lineage":
+		if observation.CompareResultAmbiguous {
+			return refuted("AMBIGUOUS_COMPARE_LINEAGE", "ambiguous compare output was accepted as merged PR lineage")
+		}
+		return closed("lineage uses the merged PR API and exact merge commit rather than ambiguous compare output")
+	case "wrong-target-commitish":
+		if observation.WrongTargetCommitish {
+			return refuted("WRONG_TARGET_COMMITISH", "draft target_commitish does not identify the exact target commit")
+		}
+		return closed("draft target_commitish is bound to the exact target commit")
+	case "tag-release-ordering-error":
+		if observation.TagReleaseOrderingError {
+			return refuted("TAG_RELEASE_ORDERING_ERROR", "tag and release mutations were ordered inconsistently")
+		}
+		return closed("annotated tag precedes draft release and publication")
+	case "missing-immutable-setting-evidence":
+		if observation.ImmutableSettingEvidenceMissing {
+			return unknown(UnknownEvidence{Stage: "PRECHECK", Step: "bind-immutable-setting-evidence", Reason: "immutable setting evidence is absent from the operator receipt", UnknownClass: "DIRECT_MISSING", NextOperation: "provide-immutable-setting-api-receipt", BlockedBy: []string{"operator-immutable-setting-receipt"}})
+		}
+		if observation.MalformedImmutableSettingEvidence {
+			return refuted("INVALID_IMMUTABLE_SETTING_EVIDENCE", "immutable setting evidence is present but contradicts the required enabled state")
+		}
+		return closed("immutable setting evidence is present and bound")
+	case "asset-manifest-count-name-size-digest-mismatch":
+		if observation.AssetManifestMismatch {
+			return refuted("ASSET_MANIFEST_MISMATCH", "asset count, name, size, or digest differs from the expected manifest")
+		}
+		return closed("asset count, names, sizes, and digests match the expected manifest")
+	case "duplicate-or-burned-version-reuse":
+		if observation.DuplicateOrBurnedVersionReuse {
+			return refuted("DUPLICATE_OR_BURNED_VERSION_REUSE", "a duplicate or burned version was reused")
+		}
+		return closed("the attempted version is fresh and not burned")
+	case "mutable-published-release":
+		if observation.MutablePublishedRelease {
+			return refuted("MUTABLE_PUBLISHED_RELEASE", "publication was accepted without immutable=true")
+		}
+		return closed("published release is verified immutable")
+	case "fixed-point-only-publication":
+		if observation.Published && observation.FixedPoint {
+			return closed("publication is reachable only after explicit FIXED_POINT conformance")
+		}
+		return refuted("PUBLICATION_WITHOUT_FIXED_POINT", "publication is not guarded by the explicit FIXED_POINT terminal")
 	default:
 		return refuted("UNDECLARED_SCENARIO", "scenario is not part of the fixed transport denominator")
 	}
@@ -185,6 +266,15 @@ func fixedObservation(id, workflow string) TransportObservation {
 		UploadEndpoint:           "RELEASE_UPLOAD_URL",
 		DraftCreated:             true, AssetsUploaded: true, Published: true, PublishedImmutable: true,
 		DeterministicReplay:      true,
+		StateHistory:             append([]ReleaseState(nil), RequiredStates...),
+		StateMachineForwardOnly:  true,
+		PreMutationFixtureConformance: true,
+		MutationStarted:          true,
+		FailurePreserved:         true,
+		BurnedVersion:            true,
+		CreatedPublicObjectIDsExact: true,
+		FixedPoint:               true,
+		OperatorAuthoritySeparate: true,
 	}
 	switch id {
 	case "missing-operator-immutable-policy-receipt":
@@ -228,20 +318,44 @@ func fixedObservation(id, workflow string) TransportObservation {
 	case "require-immediate-draft-list-visibility-after-create":
 		observation.ImmediateDraftListRequired = true
 		observation.UsedCreatedDraftID = false
+	case "linear-forward-state-machine":
+		observation.StateHistory = []ReleaseState{PrecheckState, TaggedState, DraftCreatedState, AssetsUploadedState, AssetsAuditedState, PublishedImmutableState}
+	case "pre-mutation-fixture-conformance":
+		observation.MutationStarted = false
+	case "failed-attempt-preserves-objects-and-burns-version":
+		observation.MutationStarted = true
+	case "direct-main-release-target":
+		observation.DirectMainReleaseTarget = true
+	case "ambiguous-compare-lineage":
+		observation.CompareResultAmbiguous = true
+	case "wrong-target-commitish":
+		observation.WrongTargetCommitish = true
+	case "tag-release-ordering-error":
+		observation.TagReleaseOrderingError = true
+	case "missing-immutable-setting-evidence":
+		observation.ImmutableSettingEvidenceMissing = true
+	case "asset-manifest-count-name-size-digest-mismatch":
+		observation.AssetManifestMismatch = true
+	case "duplicate-or-burned-version-reuse":
+		observation.DuplicateOrBurnedVersionReuse = true
+	case "mutable-published-release":
+		observation.MutablePublishedRelease = true
+	case "fixed-point-only-publication":
+		observation.Published = true
 	}
 	return observation
 }
 
 func workflowOrderValid(workflow string) bool {
 	markers := []string{
-		"Create draft release before assets",
-		"Use created draft ID from response",
-		"Reconcile existing draft by list ID",
-		"Resolve symbolic release target through peeled tag",
-		"Use release upload URL from draft detail",
-		"Upload every release asset",
-		"Publish release after all uploads",
-		"Verify public immutable release",
+		"Conform payloads and fixture API responses before mutation",
+		"PRECHECK exact lineage policy and unused version",
+		"TAGGED create annotated tag exactly once",
+		"DRAFT_CREATED create draft before any asset",
+		"ASSETS_UPLOADED assemble exact manifest from exact target",
+		"ASSETS_AUDITED verify count name size and digest exactly",
+		"PUBLISHED_IMMUTABLE publish only audited draft at FIXED_POINT",
+		"Emit exact attempt receipt and preserve failures",
 	}
 	last := -1
 	for _, marker := range markers {

@@ -1,0 +1,13 @@
+{
+  "schema": "gooo/release-transport-conformer/api-response-fixture/v1",
+  "fixture_id": "previous-tag-ref",
+  "method": "GET",
+  "endpoint": "repos/kimjooyoon/gooo-release-transport-conformer/git/ref/tags/v0.1.3",
+  "status": 200,
+  "response": {
+    "ref": "refs/tags/v0.1.3",
+    "object": {"type": "tag", "sha": "036d3f9dcfb81511b64a34ae360ecd58b0e58fdd"},
+    "peeled_target": "932c98e97ca61bd4f64764a9793c3dabfd05c359"
+  },
+  "mutation": false
+}

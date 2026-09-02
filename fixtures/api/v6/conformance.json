@@ -1,0 +1,32 @@
+{
+  "schema": "gooo/release-transport-conformer/fixture-api-conformance/v1",
+  "fixture_id": "release-transport-v6-pre-mutation",
+  "terminal": "FIXED_POINT",
+  "states": ["PRECHECK", "TAGGED", "DRAFT_CREATED", "ASSETS_UPLOADED", "ASSETS_AUDITED", "PUBLISHED_IMMUTABLE"],
+  "transitions": [
+    {"from": "PRECHECK", "to": "TAGGED"},
+    {"from": "TAGGED", "to": "DRAFT_CREATED"},
+    {"from": "DRAFT_CREATED", "to": "ASSETS_UPLOADED"},
+    {"from": "ASSETS_UPLOADED", "to": "ASSETS_AUDITED"},
+    {"from": "ASSETS_AUDITED", "to": "PUBLISHED_IMMUTABLE"}
+  ],
+  "responses": [
+    {"id": "previous-release-detail", "method": "GET", "endpoint": "releases/tags/v0.1.3", "status": 200, "mutation": false},
+    {"id": "previous-tag-ref", "method": "GET", "endpoint": "git/ref/tags/v0.1.3", "status": 200, "mutation": false},
+    {"id": "merged-pr-lineage", "method": "GET", "endpoint": "pulls/{merged_pr_number}", "status": 200, "mutation": false},
+    {"id": "new-annotated-tag", "method": "POST", "endpoint": "git/refs", "status": 201, "mutation": true, "payload": {"type": "tag", "target": "exact_commit"}},
+    {"id": "draft-release", "method": "POST", "endpoint": "releases", "status": 201, "mutation": true, "payload": {"draft": true, "target_commitish": "exact_commit"}},
+    {"id": "release-asset-upload", "method": "POST", "endpoint": "uploads.github.com/releases/{draft_id}/assets", "status": 201, "mutation": true, "payload": {"manifest": "name,size,digest"}},
+    {"id": "publish-draft", "method": "PATCH", "endpoint": "releases/{draft_id}", "status": 200, "mutation": true, "payload": {"draft": false}},
+    {"id": "public-immutable-release", "method": "GET", "endpoint": "releases/tags/v0.1.4", "status": 200, "mutation": false}
+  ],
+  "forbidden": [
+    "compare/{base}...{head}",
+    "repos/{repository}/releases/{id}/assets",
+    "repos/{repository}/immutable-releases",
+    "release_delete",
+    "tag_delete",
+    "asset_delete",
+    "same_version_recreate"
+  ]
+}
