@@ -387,7 +387,7 @@ func allAssetDigestsMatch(assets []AssetObservation) bool {
 }
 
 func workflowUsesStandardToken(workflow string) bool {
-	forbidden := []string{"secrets.", "GITHUB_TOKEN", "GH_PAT", "PAT", "/immutable-releases", "administration", "admin:repo"}
+	forbidden := []string{"secrets.", "GITHUB_TOKEN", "GH_PAT", "/immutable-releases", "administration", "admin:repo"}
 	for _, term := range forbidden {
 		if strings.Contains(workflow, term) {
 			return false
